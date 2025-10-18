@@ -6,7 +6,7 @@
 /*   By: mgama <mgama@student.42lyon.fr>            +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/10/18 15:23:52 by mgama             #+#    #+#             */
-/*   Updated: 2025/10/18 16:43:37 by mgama            ###   ########.fr       */
+/*   Updated: 2025/10/18 17:04:57 by mgama            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -82,31 +82,50 @@ get_max_ttl(void)
 }
 
 struct tr_addr
-get_distination_ip_addr(const char *host)
+get_destination_ip_addr(const char *host)
 {
-	struct hostent *hostent = gethostbyname(host);
-	if (hostent == NULL) {
-		perror("gethostbyname");
-		exit(1);
-	}
-	for (char **addr = hostent->h_addr_list; *addr != NULL; addr++) {
+	struct in_addr in;
+	if (inet_pton(AF_INET, host, &in) == 1) {
 		int sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
 		if (sock < 0) {
 			perror("socket");
 			return invalid_addr;
 		}
 
+		return (struct tr_addr){ sock, in.s_addr };
+	}
+
+
+	struct hostent *hostent = gethostbyname(host);
+	if (hostent == NULL)
+	{
+		perror("gethostbyname");
+		exit(1);
+	}
+	for (char **addr = hostent->h_addr_list; *addr != NULL; addr++)
+	{
+		int sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+		if (sock < 0)
+		{
+			perror("socket");
+			return invalid_addr;
+		}
+
 		struct sockaddr_in dst;
-		memset(&dst, 0, sizeof(dst));
-		dst.sin_family = AF_INET;
-		dst.sin_port = htons(53);
-		dst.sin_addr.s_addr = *(uint32_t *)addr;
+        memset(&dst, 0, sizeof(dst));
+        dst.sin_family = AF_INET;
+        dst.sin_port = htons(53); // port arbitraire
 
-		char ip_str[INET_ADDRSTRLEN];
-		inet_ntop(AF_INET, &dst.sin_addr, ip_str, sizeof(ip_str));
-		printf("Target IP: %s\n", ip_str);
+        struct in_addr in;
+        memcpy(&in, *addr, sizeof(struct in_addr));
+        dst.sin_addr = in;
 
-		if (connect(sock, (struct sockaddr *)&dst, sizeof(dst)) < 0) {
+        char ip_str[INET_ADDRSTRLEN];
+        inet_ntop(AF_INET, &dst.sin_addr, ip_str, sizeof(ip_str));
+        printf("Target IP: %s\n", ip_str);
+
+		if (connect(sock, (struct sockaddr *)&dst, sizeof(dst)) < 0)
+		{
 			perror("connect");
 			close(sock);
 			continue;
@@ -114,7 +133,8 @@ get_distination_ip_addr(const char *host)
 
 		struct sockaddr_in local;
 		socklen_t len = sizeof(local);
-		if (getsockname(sock, (struct sockaddr *)&local, &len) < 0) {
+		if (getsockname(sock, (struct sockaddr *)&local, &len) < 0)
+		{
 			perror("getsockname");
 			return invalid_addr;
 		}
@@ -125,8 +145,10 @@ get_distination_ip_addr(const char *host)
 
 		struct ifaddrs *ifap, *ifa;
 		getifaddrs(&ifap);
-		for (ifa = ifap; ifa; ifa = ifa->ifa_next) {
-			if (ifa->ifa_addr && ifa->ifa_addr->sa_family == AF_INET) {
+		for (ifa = ifap; ifa; ifa = ifa->ifa_next)
+		{
+			if (ifa->ifa_addr && ifa->ifa_addr->sa_family == AF_INET)
+			{
 				struct sockaddr_in *sa = (struct sockaddr_in *)ifa->ifa_addr;
 				if (sa->sin_addr.s_addr == local.sin_addr.s_addr)
 					printf("Using interface: %s\n", ifa->ifa_name);
@@ -199,85 +221,89 @@ main(int argc, char **argv)
 
 	printf("Default IP TTL: %d\n", max_ttl);
 
-	int send_sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+	struct tr_addr dst_addr = get_destination_ip_addr(target);
+	int send_sock = dst_addr.send_sock;
+	if (send_sock < 0)
+		tr_err("Failed to create send socket");
+
 	int raw_sock  = socket(AF_INET, SOCK_RAW, IPPROTO_ICMP);
 
-	(void)get_distination_ip_addr(target); 
+	char ip_str[INET_ADDRSTRLEN];
+	inet_ntop(AF_INET, &dst_addr.target_ip, ip_str, sizeof(ip_str));
 
-	// int probes = 3;
-	// int timeout_sec = 1;
+	printf("ft_traceroute to %s (%s), %d hops max, %d byte packets\n", target, ip_str, max_ttl, TR_DEFAULT_PACKET_LEN);
 
-	// for (int ttl = 1; ttl <= MAXHOPS; ++ttl)
-	// {
-	// 	setsockopt(send_sock, IPPROTO_IP, IP_TTL, &ttl, sizeof(ttl));
+	for (int ttl = 1; ttl <= max_ttl; ++ttl)
+	{
+		setsockopt(send_sock, IPPROTO_IP, IP_TTL, &ttl, sizeof(ttl));
 
-	// 	printf("%2d  ", ttl);
-	// 	fflush(stdout);
+		printf("%2d  ", ttl);
+		fflush(stdout);
 
-	// 	// envoyer 3 probes par TTL
-	// 	for (int probe = 0; probe < probes; ++probe)
-	// 	{
-	// 		struct sockaddr_in dst;
-	// 		memset(&dst, 0, sizeof(dst));
-	// 		dst.sin_family = AF_INET;
+		// envoyer 3 probes par TTL
+		for (int probe = 0; probe < nprobes; ++probe)
+		{
+			struct sockaddr_in dst;
+			memset(&dst, 0, sizeof(dst));
+			dst.sin_family = AF_INET;
 
-	// 		// adresse IP destination
-	// 		inet_pton(AF_INET, "8.8.8.8", &dst.sin_addr);
+			// adresse IP destination
+			inet_pton(AF_INET, "8.8.8.8", &dst.sin_addr);
 
-	// 		// port UDP de destination pour la sonde
-	// 		int base_port = 33434;
-	// 		int seq = ttl * 3 + probe;  // exemple séquence
-	// 		dst.sin_port = htons(base_port + seq);
+			// port UDP de destination pour la sonde
+			int base_port = 33434;
+			int seq = ttl * 3 + probe;  // exemple séquence
+			dst.sin_port = htons(base_port + seq);
 
-	// 		unsigned char payload[32];
-	// 		memset(payload, 0, sizeof(payload));
+			unsigned char payload[TR_DEFAULT_PACKET_LEN];
+			memset(payload, 0, sizeof(payload));
 
-	// 		dst.sin_port = htons(base_port + ttl*probes + probe);
-	// 		sendto(send_sock, payload, sizeof(payload), 0, (struct sockaddr*)&dst, sizeof(dst));
-	// 		// puis attendre la réponse ICMP
-	// 		fd_set rfds;
-	// 		FD_ZERO(&rfds);
-	// 		FD_SET(raw_sock, &rfds);
-	// 		struct timeval tv = { timeout_sec, 0 };
-	// 		int rv = select(raw_sock+1, &rfds, NULL, NULL, &tv);
-	// 		if (rv > 0 && FD_ISSET(raw_sock, &rfds))
-	// 		{
-	// 			char buff[1024];
-	// 			struct ip *ip;
-	// 			struct icmp *icmp;
-	// 			struct sockaddr_in from;
-	// 			socklen_t fromlen = sizeof(from);
+			dst.sin_port = htons(base_port + ttl*nprobes + probe);
+			sendto(send_sock, payload, sizeof(payload), 0, (struct sockaddr*)&dst, sizeof(dst));
+			// puis attendre la réponse ICMP
+			fd_set rfds;
+			FD_ZERO(&rfds);
+			FD_SET(raw_sock, &rfds);
+			struct timeval tv = { waittime, 0 };
+			int rv = select(raw_sock+1, &rfds, NULL, NULL, &tv);
+			if (rv > 0 && FD_ISSET(raw_sock, &rfds))
+			{
+				char buff[1024];
+				struct ip *ip;
+				struct icmp *icmp;
+				struct sockaddr_in from;
+				socklen_t fromlen = sizeof(from);
 
-	// 			ssize_t n = recvfrom(raw_sock, buff, sizeof buff, 0, (struct sockaddr*)&from, &fromlen);
+				ssize_t n = recvfrom(raw_sock, buff, sizeof buff, 0, (struct sockaddr*)&from, &fromlen);
 
-	// 			ip = (struct ip *)buff;
-	// 			int ip_header_len = ip->ip_hl * 4;
-	// 			icmp = (struct icmp *)(buff + ip_header_len);
+				ip = (struct ip *)buff;
+				int ip_header_len = ip->ip_hl * 4;
+				icmp = (struct icmp *)(buff + ip_header_len);
 
-	// 			if (icmp->icmp_type == 11 || (icmp->icmp_type == 3 && icmp->icmp_code == 3))
-	// 			{
-	// 				char addr_str[INET_ADDRSTRLEN];
-	// 				inet_ntop(AF_INET, &from.sin_addr, addr_str, sizeof(addr_str));
-	// 				printf("%s  ", addr_str);
-	// 			}
-	// 			else if (icmp->icmp_type == 0)
-	// 			{
-	// 				return (0);
-	// 			}
+				if (icmp->icmp_type == 11 || (icmp->icmp_type == 3 && icmp->icmp_code == 3))
+				{
+					char addr_str[INET_ADDRSTRLEN];
+					inet_ntop(AF_INET, &from.sin_addr, addr_str, sizeof(addr_str));
+					printf("%s  ", addr_str);
+				}
+				else if (icmp->icmp_type == 0)
+				{
+					return (0);
+				}
 
-	// 			if (dst.sin_addr.s_addr == from.sin_addr.s_addr)
-	// 			{
-	// 				return (0);
-	// 			}
-	// 		}
-	// 		else
-	// 		{
-	// 			printf("* ");
-	// 			fflush(stdout);
-	// 		}
-	// 	}
-	// 	printf("\n");
-	// }
+				if (dst.sin_addr.s_addr == from.sin_addr.s_addr)
+				{
+					return (0);
+				}
+			}
+			else
+			{
+				printf("* ");
+				fflush(stdout);
+			}
+		}
+		printf("\n");
+	}
 
-	// return (0);
+	return (0);
 }

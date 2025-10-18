@@ -6,7 +6,7 @@
 /*   By: mgama <mgama@student.42lyon.fr>            +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/10/18 15:22:47 by mgama             #+#    #+#             */
-/*   Updated: 2025/10/18 16:41:20 by mgama            ###   ########.fr       */
+/*   Updated: 2025/10/18 17:04:53 by mgama            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -40,6 +40,7 @@
 #define TR_DEFAULT_FIRST_TTL 1
 #define TR_DEFAULT_TIMEOUT 5
 #define TR_DEFAULT_BASE_PORT 33434
+#define TR_DEFAULT_PACKET_LEN 40
 
 #define TR_FLAG_VERBOSE 0x01
 
