@@ -1,0 +1,6 @@
+.vscode
+.objs
+*.dSYM
+.DS_Store
+ft_traceroute
+out*
