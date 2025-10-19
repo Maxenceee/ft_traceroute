@@ -6,7 +6,7 @@
 /*   By: mgama <mgama@student.42lyon.fr>            +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/10/18 15:23:52 by mgama             #+#    #+#             */
-/*   Updated: 2025/10/20 00:25:43 by mgama            ###   ########.fr       */
+/*   Updated: 2025/10/20 00:52:27 by mgama            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -58,6 +58,7 @@ trace(int send_sock, int recv_sock, uint32_t dst_addr, struct tr_params *params)
 			{
 				printf(TR_PREFIX": wrote %s %zu chars, ret=%d", __func__, sent, -1);
 				fflush(stdout);
+				continue;
 			}
 
 			/**
@@ -145,7 +146,9 @@ trace(int send_sock, int recv_sock, uint32_t dst_addr, struct tr_params *params)
 				 * Lorsque la destination est atteinte, elle envoie un message ICMP de type 0 (Echo Reply)
 				 * ou de type 3 (Destination Unreachable) code 3 (Port Unreachable).
 				 */
-				if (icmp->icmp_type == 11 || (icmp->icmp_type == 3 && icmp->icmp_code == 3))
+				if (icmp->icmp_type == ICMP_TIMXCEED
+					|| (icmp->icmp_type == ICMP_UNREACH && icmp->icmp_code == ICMP_UNREACH_PORT)
+					|| icmp->icmp_type == ICMP_ECHOREPLY)
 				{
 					if (last_addr_reached == 0)
 					{
@@ -161,7 +164,7 @@ trace(int send_sock, int recv_sock, uint32_t dst_addr, struct tr_params *params)
 					print_router_rtt(start, end);
 				}
 
-				if (icmp->icmp_type == 0 || (icmp->icmp_type == 3 && icmp->icmp_code == 3))
+				if (icmp->icmp_type == ICMP_ECHOREPLY || (icmp->icmp_type == ICMP_UNREACH && icmp->icmp_code == ICMP_UNREACH_PORT))
             		dest_reached = 1;
 			}
 			if (!got_reply)
