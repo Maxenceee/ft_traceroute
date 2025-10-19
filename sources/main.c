@@ -6,7 +6,7 @@
 /*   By: mgama <mgama@student.42lyon.fr>            +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/10/18 15:23:52 by mgama             #+#    #+#             */
-/*   Updated: 2025/10/19 19:43:39 by mgama            ###   ########.fr       */
+/*   Updated: 2025/10/19 19:44:49 by mgama            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -307,13 +307,13 @@ send_probe_tcp(int send_sock, uint32_t dst_addr, uint16_t current_port, struct t
 
 	tcph.th_sport = htons(src_port);
 	tcph.th_dport = htons(current_port);
-	tcph.seq = htonl((uint32_t)rand());
-	tcph.ack_seq = 0;
-	tcph.doff = 5; // 5 * 4 = 20 bytes (no options)
-	tcph.syn = 1;
-	tcph.window = htons(64240);
-	tcph.check = 0;
-	tcph.urg_ptr = 0;
+	tcph.th_seq = htonl((uint32_t)rand());
+	tcph.th_ack = 0;
+	tcph.th_off = 5; // 5 * 4 = 20 bytes (no options)
+	tcph.th_flags = TH_SYN;
+	tcph.th_win = htons(64240);
+	tcph.th_sum = 0;
+	tcph.th_urp = 0;
 
 	struct {
 		uint32_t saddr;
@@ -338,7 +338,7 @@ send_probe_tcp(int send_sock, uint32_t dst_addr, uint16_t current_port, struct t
 	memcpy(pbuf, &psh, sizeof(psh));
 	memcpy(pbuf + sizeof(psh), &tcph, sizeof(struct tcphdr));
 
-	tcph.check = checksum(pbuf, psize);
+	tcph.th_sum = checksum(pbuf, psize);
 	free(pbuf);
 
 	size_t packet_len = sizeof(struct tcphdr);
@@ -349,7 +349,7 @@ send_probe_tcp(int send_sock, uint32_t dst_addr, uint16_t current_port, struct t
 	memset(&dst, 0, sizeof(dst));
 	dst.sin_family = AF_INET;
 	dst.sin_addr.s_addr = dst_addr;
-	dst.sin_port = tcph.dest;
+	dst.sin_port = tcph.th_dport;
 
 	return (sendto(send_sock, packet, packet_len, 0, (struct sockaddr *)&dst, sizeof(dst)));
 }
