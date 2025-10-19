@@ -6,7 +6,7 @@
 /*   By: mgama <mgama@student.42lyon.fr>            +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/10/18 15:22:47 by mgama             #+#    #+#             */
-/*   Updated: 2025/10/19 19:37:10 by mgama            ###   ########.fr       */
+/*   Updated: 2025/10/19 21:59:06 by mgama            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -71,5 +71,30 @@ struct tr_params {
 	int			protocol;
 	uint32_t	local_addr;
 };
+
+/* Function prototypes */
+
+void	tr_err(const char *msg);
+void	tr_perr(const char *msg);
+void	tr_warn(const char *msg);
+void	tr_bad_value(const char *key, const char *val);
+
+int		tr_params(const char *key, const char *val, int min, int max);
+
+uint32_t	get_destination_ip_addr(const char *host, struct tr_params *params);
+int			set_protocol(const char* proto_str);
+int			create_socket(struct tr_params *params);
+
+void	print_router_name(struct sockaddr *sa);
+void	print_router_rtt(struct timespec start, struct timespec end);
+
+uint16_t	tcp_checksum(const void *buf, size_t len);
+uint16_t	icmp_checksum(const void *buf, size_t len);
+
+int	send_probe(int send_sock, uint32_t dst_addr, uint16_t current_port, struct tr_params *params);
+int	is_valid_response(struct icmp *icmp, uint32_t current_port, struct tr_params *params);
+
+void	check_privileges(void);
+int		get_max_ttl(void);
 
 #endif /* TRACEROUTE_H */
