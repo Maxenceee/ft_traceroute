@@ -6,7 +6,7 @@
 /*   By: mgama <mgama@student.42lyon.fr>            +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/10/18 15:23:52 by mgama             #+#    #+#             */
-/*   Updated: 2025/10/19 16:26:15 by mgama            ###   ########.fr       */
+/*   Updated: 2025/10/19 16:31:04 by mgama            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -46,6 +46,12 @@ tr_err(const char *msg)
 {
 	fprintf(stderr, TR_PREFIX": %s\n", msg);
 	exit(1);
+}
+
+void
+tr_perr(const char *msg)
+{
+	fprintf(stderr, TR_PREFIX": %s: %s\n", msg, strerror(errno));
 }
 
 void
@@ -96,7 +102,7 @@ get_max_ttl(void)
 	size_t len = sizeof(max_ttl);
 
 	if (sysctlbyname("net.inet.ip.ttl", &max_ttl, &len, NULL, 0) == -1) {
-		perror("sysctlbyname");
+		tr_perr("sysctlbyname");
 		exit(1);
 	}
 	return (max_ttl);
@@ -140,7 +146,7 @@ get_destination_ip_addr(const char *host)
 	int sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
 	if (sock < 0)
 	{
-		perror("socket");
+		tr_perr("socket");
 		return (0);
 	}
 
@@ -152,7 +158,7 @@ get_destination_ip_addr(const char *host)
 
 	if (connect(sock, (struct sockaddr *)&dst, sizeof(dst)) < 0)
 	{
-		perror("connect");
+		tr_perr("connect");
 		close(sock);
 		return (0);
 	}
@@ -161,7 +167,7 @@ get_destination_ip_addr(const char *host)
 	socklen_t len = sizeof(local);
 	if (getsockname(sock, (struct sockaddr *)&local, &len) < 0)
 	{
-		perror("getsockname");
+		tr_perr("getsockname");
 		close(sock);
 		return 0;
 	}
@@ -255,7 +261,8 @@ print_router_rtt(struct timespec start, struct timespec end)
 	fflush(stdout);
 }
 
-static double time_diff_ms(struct timespec start, struct timespec end) {
+static double
+time_diff_ms(struct timespec start, struct timespec end) {
     return (end.tv_sec - start.tv_sec) * 1000.0 + (end.tv_nsec - start.tv_nsec) / 1e6;
 }
 
@@ -511,14 +518,14 @@ main(int argc, char **argv)
 	int send_sock = create_socket(&params);
 	if (send_sock < 0)
 	{
-		perror("socket");
+		tr_perr("socket");
 		return (1);
 	}
 	
 	int recv_sock = socket(AF_INET, SOCK_RAW, IPPROTO_ICMP);
 	if (recv_sock < 0)
 	{
-		perror("socket");
+		tr_perr("socket");
 		return (1);
 	}
 
