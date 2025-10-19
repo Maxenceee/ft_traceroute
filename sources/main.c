@@ -6,7 +6,7 @@
 /*   By: mgama <mgama@student.42lyon.fr>            +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/10/18 15:23:52 by mgama             #+#    #+#             */
-/*   Updated: 2025/10/19 16:31:04 by mgama            ###   ########.fr       */
+/*   Updated: 2025/10/19 16:38:45 by mgama            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -16,8 +16,8 @@
 void
 usage(void)
 {
-	fprintf(stderr, "Usage: traceroute [-Iv] [-f first_ttl] [-M first_ttl] [-m max_ttl]\n");
-	fprintf(stderr, "        [-p port] [-q nqueries] [-w waittime] host [packetlen]\n");
+	(void)fprintf(stderr, "Usage: traceroute [-Iv] [-f first_ttl] [-M first_ttl] [-m max_ttl]\n");
+	(void)fprintf(stderr, "        [-p port] [-q nqueries] [-w waittime] host [packetlen]\n");
 	exit(64);
 }
 
@@ -25,8 +25,8 @@ void
 _print_ip(uint32_t ip, const char* msg)
 {
 	char ip_str[INET_ADDRSTRLEN];
-	inet_ntop(AF_INET, &ip, ip_str, sizeof(ip_str));
-	printf("%s: %s\n", msg, ip_str);
+	(void)inet_ntop(AF_INET, &ip, ip_str, sizeof(ip_str));
+	(void)printf("%s: %s\n", msg, ip_str);
 }
 
 int
@@ -42,28 +42,21 @@ isstringdigit(const char *str)
 }
 
 void
-tr_err(const char *msg)
-{
-	fprintf(stderr, TR_PREFIX": %s\n", msg);
-	exit(1);
-}
-
-void
 tr_perr(const char *msg)
 {
-	fprintf(stderr, TR_PREFIX": %s: %s\n", msg, strerror(errno));
+	(void)fprintf(stderr, TR_PREFIX": %s: %s\n", msg, strerror(errno));
 }
 
 void
 tr_warn(const char *msg)
 {
-	fprintf(stderr, TR_PREFIX": Warning: %s\n", msg);
+	(void)fprintf(stderr, TR_PREFIX": Warning: %s\n", msg);
 }
 
 void
 tr_bad_value(const char *key, const char *val)
 {
-	fprintf(stderr, TR_PREFIX": \"%s\" bad value for %s\n", val, key);
+	(void)fprintf(stderr, TR_PREFIX": \"%s\" bad value for %s\n", val, key);
 	exit(1);
 }
 
@@ -75,11 +68,11 @@ tr_params(const char *key, const char *val, int min, int max)
 	}
 	int pval = atoi(val);
 	if (pval < min) {
-		fprintf(stderr, TR_PREFIX": %s must be > %d\n", key, min);
+		(void)fprintf(stderr, TR_PREFIX": %s must be > %d\n", key, min);
 		exit(1);
 	}
 	if (pval > max) {
-		fprintf(stderr, TR_PREFIX": %s must be <= %d\n", key, max);
+		(void)fprintf(stderr, TR_PREFIX": %s must be <= %d\n", key, max);
 		exit(1);
 	}
 	return (pval);
@@ -90,7 +83,7 @@ check_privileges(void)
 {
 	if (geteuid() != 0)
 	{
-		fprintf(stderr, "This program must be run as root.\n");
+		(void)fprintf(stderr, "This program must be run as root.\n");
 		exit(1);
 	}
 }
@@ -159,7 +152,7 @@ get_destination_ip_addr(const char *host)
 	if (connect(sock, (struct sockaddr *)&dst, sizeof(dst)) < 0)
 	{
 		tr_perr("connect");
-		close(sock);
+		(void)close(sock);
 		return (0);
 	}
 
@@ -168,7 +161,7 @@ get_destination_ip_addr(const char *host)
 	if (getsockname(sock, (struct sockaddr *)&local, &len) < 0)
 	{
 		tr_perr("getsockname");
-		close(sock);
+		(void)close(sock);
 		return 0;
 	}
 
@@ -186,7 +179,7 @@ get_destination_ip_addr(const char *host)
 		}
 	}
 	freeifaddrs(ifap);
-	close(sock);
+	(void)close(sock);
 	return (dst.sin_addr.s_addr);
 }
 
@@ -244,25 +237,26 @@ print_router_name(struct sockaddr *sa)
 	 */
 	if (getnameinfo(sa, sa->sa_len, hbuf, sizeof(hbuf), sbuf, sizeof(sbuf), NI_NAMEREQD) != 0)
 	{
-		printf("%s (%s) ", ip_str, ip_str);
+		(void)printf("%s (%s) ", ip_str, ip_str);
 	}
 	else
 	{
-		printf("%s (%s) ", hbuf, ip_str);
+		(void)printf("%s (%s) ", hbuf, ip_str);
 	}
-	fflush(stdout);
+	(void)fflush(stdout);
 }
 
 void
 print_router_rtt(struct timespec start, struct timespec end)
 {
 	double rtt = (end.tv_sec - start.tv_sec) * 1000.0 + (end.tv_nsec - start.tv_nsec) / 1e6;
-	printf(" %.3f ms ", rtt);
-	fflush(stdout);
+	(void)printf(" %.3f ms ", rtt);
+	(void)fflush(stdout);
 }
 
 static double
-time_diff_ms(struct timespec start, struct timespec end) {
+time_diff_ms(struct timespec start, struct timespec end)
+{
     return (end.tv_sec - start.tv_sec) * 1000.0 + (end.tv_nsec - start.tv_nsec) / 1e6;
 }
 
@@ -278,13 +272,17 @@ trace(int recv_sock, int send_sock, uint32_t dst_addr, struct tr_params *params)
 		 */
 		(void)setsockopt(send_sock, IPPROTO_IP, IP_TTL, &ttl, sizeof(ttl));
 
-		printf("%2d  ", ttl);
+		(void)printf("%2d  ", ttl);
 
 		uint32_t last_addr_reached = 0;
 		int dest_reached = 0;
 
 		for (int probe = 0; probe < params->nprobes; ++probe)
 		{
+			/**
+			 * TODO:
+			 * Remplir et formatter le payload en fonction du protocole choisi.
+			 */
 			memset(payload, 0, params->packet_len);
 
 			struct sockaddr_in dst;
@@ -301,8 +299,6 @@ trace(int recv_sock, int send_sock, uint32_t dst_addr, struct tr_params *params)
 			struct timespec start, end, now;
 			(void)clock_gettime(CLOCK_MONOTONIC, &start);
 
-			// printf("\n\t\t"B_BLUE"debug"RESET": start=%ld.%09ld\n", start.tv_sec, start.tv_nsec);
-
 			(void)sendto(send_sock, payload, params->packet_len, 0, (struct sockaddr*)&dst, sizeof(dst));
 
 			/**
@@ -313,7 +309,7 @@ trace(int recv_sock, int send_sock, uint32_t dst_addr, struct tr_params *params)
 			 */
 			while (!got_reply)
 			{
-				clock_gettime(CLOCK_MONOTONIC, &now);
+				(void)clock_gettime(CLOCK_MONOTONIC, &now);
 				// Calcule le temps écoulé depuis l'envoi de la probe
     			double elapsed = time_diff_ms(start, now);
 
@@ -410,7 +406,7 @@ trace(int recv_sock, int send_sock, uint32_t dst_addr, struct tr_params *params)
 					}
 					else if (last_addr_reached != 0 && last_addr_reached != from.sin_addr.s_addr)
 					{
-						printf("%s%s", "\n", "    ");
+						(void)printf("%s%s", "\n", "    ");
 						print_router_name((struct sockaddr*)&from);
 						last_addr_reached = from.sin_addr.s_addr;
 					}
@@ -422,11 +418,11 @@ trace(int recv_sock, int send_sock, uint32_t dst_addr, struct tr_params *params)
 			}
 			if (!got_reply)
 			{
-    			printf("* ");
-				fflush(stdout);
+    			(void)printf("* ");
+				(void)fflush(stdout);
 			}
 		}
-		printf("\n");
+		(void)printf("\n");
 
 		if (dest_reached)
 		{
@@ -511,7 +507,7 @@ main(int argc, char **argv)
 	uint32_t dst_addr = get_destination_ip_addr(target);
 	if (dst_addr == 0)
 	{
-		fprintf(stderr, "traceroute: unknown host %s\n", target);
+		(void)fprintf(stderr, "traceroute: unknown host %s\n", target);
 		return (1);
 	}
 
@@ -530,9 +526,9 @@ main(int argc, char **argv)
 	}
 
 	char ip_str[INET_ADDRSTRLEN];
-	inet_ntop(AF_INET, &dst_addr, ip_str, sizeof(ip_str));
+	(void)inet_ntop(AF_INET, &dst_addr, ip_str, sizeof(ip_str));
 
-	printf(TR_PREFIX" to %s (%s), %d hops max, %d byte packets\n", target, ip_str, params.max_ttl, params.packet_len);
+	(void)printf(TR_PREFIX" to %s (%s), %d hops max, %d byte packets\n", target, ip_str, params.max_ttl, params.packet_len);
 
 	return (trace(recv_sock, send_sock, dst_addr, &params));
 }
