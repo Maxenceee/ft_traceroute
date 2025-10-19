@@ -6,7 +6,7 @@
 /*   By: mgama <mgama@student.42lyon.fr>            +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/10/19 21:57:01 by mgama             #+#    #+#             */
-/*   Updated: 2025/10/19 23:45:09 by mgama            ###   ########.fr       */
+/*   Updated: 2025/10/20 00:35:04 by mgama            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -14,62 +14,138 @@
 #include "debug.h"
 
 int
-assign_iface(int sock, struct tr_params *params)
+_assign_iface(int sock, struct tr_params *params)
 {
-	struct ifaddrs *ifap, *ifa, *curr, *assigned = NULL;
+	/**
+	 * FIXME:
+	 *
+	 * L'assignation forcée à une interface spécifique ne fonctionne pas...
+	 * 1. voir le `multicast` (IP_MULTICAST_IF)
+	 * 2. si 1 hors sujet, supprimer l'implémentation.
+	 */
+
+	if (params->ifname == NULL)
+		return (1);
+
+	struct ifaddrs *ifap, *ifa;
 
 	(void)getifaddrs(&ifap);
 	for (ifa = ifap; ifa; ifa = ifa->ifa_next)
 	{
-		if (params->ifname != NULL && (ifa->ifa_flags & IFF_UP) && strcmp(ifa->ifa_name, params->ifname) == 0)
+		if (ifa->ifa_addr->sa_family == AF_INET && (ifa->ifa_flags & IFF_UP) && (ifa->ifa_flags & IFF_RUNNING) && strcmp(ifa->ifa_name, params->ifname) == 0)
 		{
-			assigned = ifa;
-		}
-		if (ifa->ifa_addr && ifa->ifa_addr->sa_family == AF_INET)
-		{
-			struct sockaddr_in *sa = (struct sockaddr_in *)ifa->ifa_addr;
-			_print_ip(sa->sin_addr.s_addr, ifa->ifa_name);
-			if (sa->sin_addr.s_addr == params->local_addr)
-				curr = ifa;
+			// printf("found %s UP=%d RUNNING=%d INET=%d ", ifa->ifa_name, ifa->ifa_flags & IFF_UP ? 1 : 0, ifa->ifa_flags & IFF_RUNNING ? 1 : 0, ifa->ifa_addr->sa_family == AF_INET);
+			// _print_ip(((struct sockaddr_in *)ifa->ifa_addr)->sin_addr.s_addr, ifa->ifa_name);
+			break;
 		}
 	}
-
-	if (curr == NULL)
+	if (!ifa)
 	{
 		tr_err("Can't find current interface");
 		freeifaddrs(ifap);
-		return (0);
+		return (1);
 	}
 
-	if (params->ifname != NULL && assigned == NULL)
+	if (setsockopt(sock, SOL_SOCKET, SO_BINDTODEVICE, params->ifname, strlen(params->ifname)) < 0)
 	{
-		(void)fprintf(stderr, TR_PREFIX": Can't find interface %s\n", params->ifname);
-		freeifaddrs(ifap);
-		return (0);
+		tr_perr("setsockopt");
+		return (1);
 	}
-	else if (params->ifname != NULL && assigned != NULL)
+
+	struct sockaddr_in *sa = (struct sockaddr_in *)ifa->ifa_addr;
+	params->local_addr = sa->sin_addr.s_addr;
+
+	// _print_ip(params->local_addr, "assigned");
+
+	freeifaddrs(ifap);
+	return (0);
+}
+
+int
+assign_iface(int sock, uint32_t dst_addr, struct tr_params *params)
+{
+	struct ifaddrs *ifap, *ifa;
+
+	if (params->ifname && _assign_iface(sock, params))
 	{
-		if (setsockopt(sock, SOL_SOCKET, SO_BINDTODEVICE, params->ifname, strlen(params->ifname)) < 0)
+		return (1);
+	}
+	else if (!params->ifname)
+	{
+		/**
+		 * Notre programme nécessite de connaître l'adresse IP locale utilisée
+		 * pour envoyer des paquets vers la destination, afin de construire
+		 * des en-têtes IP appropriés.
+		 * 
+		 * Pour cela, on crée un socket UDP temporaire et on se connecte
+		 * à l'adresse de destination. Cela permet au système d'exploitation
+		 * de déterminer l'adresse IP locale à utiliser pour l'envoi des paquets
+		 * ainsi que l'interface réseau correspondante.
+		 */
+
+		int sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+		if (sock < 0)
 		{
-			tr_perr("setsockopt");
-			freeifaddrs(ifap);
+			tr_perr("socket");
 			return (0);
 		}
-		curr = assigned;
+
+		struct sockaddr_in dst;
+		memset(&dst, 0, sizeof(dst));
+		dst.sin_family = AF_INET;
+		dst.sin_port = htons(53);
+		dst.sin_addr.s_addr = dst_addr;
+
+		if (connect(sock, (struct sockaddr *)&dst, sizeof(dst)) < 0)
+		{
+			tr_perr("connect");
+			(void)close(sock);
+			return (0);
+		}
+
+		struct sockaddr_in local;
+		socklen_t len = sizeof(local);
+		if (getsockname(sock, (struct sockaddr *)&local, &len) < 0)
+		{
+			tr_perr("getsockname");
+			(void)close(sock);
+			return (0);
+		}
+
+		params->local_addr = local.sin_addr.s_addr;
+
+		(void)close(sock);
 	}
+
+	// _print_ip(params->local_addr, "after assigned");
 
 	if (verbose(params->flags))
 	{
-		printf("Using interface: %s\n", curr->ifa_name);
+		(void)getifaddrs(&ifap);
+		for (ifa = ifap; ifa; ifa = ifa->ifa_next)
+		{
+			if (ifa->ifa_addr && ifa->ifa_addr->sa_family == AF_INET)
+			{
+				struct sockaddr_in *sa = (struct sockaddr_in *)ifa->ifa_addr;
+				if (sa->sin_addr.s_addr == params->local_addr)
+				{
+					// _print_ip(params->local_addr, "local");
+					printf("Using interface: %s\n", ifa->ifa_name);
+				}
+			}
+		}
+	
+		freeifaddrs(ifap);
 	}
 
-	freeifaddrs(ifap);
-	return (1);
+	return (0);
 }
 
 uint32_t
 get_destination_ip_addr(const char *host, struct tr_params *params)
 {
+	(void)params;
+
 	struct in_addr in;
 
 	/**
@@ -100,56 +176,7 @@ get_destination_ip_addr(const char *host, struct tr_params *params)
         memcpy(&in, *addr, sizeof(struct in_addr));
 	}
 
-	/**
-	 * Notre programme nécessite de connaître l'adresse IP locale utilisée
-	 * pour envoyer des paquets vers la destination, afin de construire
-	 * des en-têtes IP appropriés.
-	 * 
-	 * Pour cela, on crée un socket UDP temporaire et on se connecte
-	 * à l'adresse de destination. Cela permet au système d'exploitation
-	 * de déterminer l'adresse IP locale à utiliser pour l'envoi des paquets
-	 * ainsi que l'interface réseau correspondante.
-	 */
-
-	int sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
-	if (sock < 0)
-	{
-		tr_perr("socket");
-		return (0);
-	}
-
-	if (params->ifname != NULL && setsockopt(sock, SOL_SOCKET, SO_BINDTODEVICE, params->ifname, strlen(params->ifname)) < 0)
-	{
-		tr_perr("setsockopt");
-		return (0);
-	}
-
-	struct sockaddr_in dst;
-	memset(&dst, 0, sizeof(dst));
-	dst.sin_family = AF_INET;
-	dst.sin_port = htons(53);
-	dst.sin_addr = in;
-
-	if (connect(sock, (struct sockaddr *)&dst, sizeof(dst)) < 0)
-	{
-		tr_perr("connect");
-		(void)close(sock);
-		return (0);
-	}
-
-	struct sockaddr_in local;
-	socklen_t len = sizeof(local);
-	if (getsockname(sock, (struct sockaddr *)&local, &len) < 0)
-	{
-		tr_perr("getsockname");
-		(void)close(sock);
-		return (0);
-	}
-
-	params->local_addr = local.sin_addr.s_addr;
-
-	(void)close(sock);
-	return (dst.sin_addr.s_addr);
+	return (((struct sockaddr_in *)&in)->sin_addr.s_addr);
 }
 
 int

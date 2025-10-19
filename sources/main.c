@@ -6,7 +6,7 @@
 /*   By: mgama <mgama@student.42lyon.fr>            +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/10/18 15:23:52 by mgama             #+#    #+#             */
-/*   Updated: 2025/10/19 23:37:36 by mgama            ###   ########.fr       */
+/*   Updated: 2025/10/20 00:25:43 by mgama            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -42,6 +42,7 @@ trace(int send_sock, int recv_sock, uint32_t dst_addr, struct tr_params *params)
 
 		uint32_t last_addr_reached = 0;
 		int dest_reached = 0;
+		size_t sent = 0;
 
 		for (uint32_t probe = 0; probe < params->nprobes; ++probe)
 		{
@@ -53,10 +54,10 @@ trace(int send_sock, int recv_sock, uint32_t dst_addr, struct tr_params *params)
 			struct timespec start, end, now;
 			(void)clock_gettime(CLOCK_MONOTONIC, &start);
 
-			if (send_probe(send_sock, dst_addr, current_port, params) == 0)
+			if ((sent = send_probe(send_sock, dst_addr, current_port, params)) <= 0)
 			{
-				tr_perr("sendto");
-				continue;
+				printf(TR_PREFIX": wrote %s %zu chars, ret=%d", __func__, sent, -1);
+				fflush(stdout);
 			}
 
 			/**
@@ -266,22 +267,22 @@ main(int argc, char **argv)
 		return (1);
 	}
 
-	/**
-	 * Afin de récupérer le nom de l'interface réseau utilisée pour atteindre
-	 * la destination, nous parcourons la liste des interfaces réseau et on compare
-	 * l'adresse IP locale obtenue précédemment.
-	 */
-	if (assign_iface(send_sock, &params) == 0)
-	{
-		(void)close(send_sock);
-		return (0);
-	}
-
 	uint32_t dst_addr = get_destination_ip_addr(target, &params);
 	if (dst_addr == 0)
 	{
 		(void)fprintf(stderr, "traceroute: unknown host %s\n", target);
 		return (1);
+	}
+
+	/**
+	 * Afin de récupérer le nom de l'interface réseau utilisée pour atteindre
+	 * la destination, nous parcourons la liste des interfaces réseau et on compare
+	 * l'adresse IP locale obtenue précédemment.
+	 */
+	if (assign_iface(send_sock, dst_addr, &params))
+	{
+		(void)close(send_sock);
+		return (0);
 	}
 	
 	int recv_sock = socket(AF_INET, SOCK_RAW, IPPROTO_ICMP);
