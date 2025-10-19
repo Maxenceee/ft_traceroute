@@ -6,7 +6,7 @@
 /*   By: mgama <mgama@student.42lyon.fr>            +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/10/18 15:23:52 by mgama             #+#    #+#             */
-/*   Updated: 2025/10/19 19:44:49 by mgama            ###   ########.fr       */
+/*   Updated: 2025/10/19 21:42:50 by mgama            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -29,6 +29,34 @@ _print_ip(uint32_t ip, const char* msg)
 	(void)printf("%s: %s\n", msg, ip_str);
 }
 
+void
+_print_icmp(uint8_t *packet, size_t packet_size)
+{
+	size_t i, j;
+	unsigned char *p = (unsigned char *)packet;
+	(void)printf("Full ICMP packet (%zu bytes):\n", packet_size);
+	for (i = 0; i < packet_size; ++i) {
+		if ((i % 16) == 0)
+			(void)printf("%04zx: ", i);
+		(void)printf("%02x ", p[i]);
+		if ((i % 16) == 15 || i == packet_size - 1) {
+			/* pad hex column if line not complete */
+			int pad = 15 - (i % 16);
+			for (j = 0; j < pad; ++j)
+				(void)printf("   ");
+			(void)printf(" ");
+			/* print ASCII representation */
+			size_t start = i - (i % 16);
+			for (j = start; j <= i; ++j) {
+				unsigned char c = p[j];
+				(void)printf("%c", (c >= 32 && c < 127) ? c : '.');
+			}
+			(void)printf("\n");
+		}
+	}
+	(void)fflush(stdout);
+}
+
 int
 isstringdigit(const char *str)
 {
@@ -39,6 +67,12 @@ isstringdigit(const char *str)
 		str++;
 	}
 	return (1);
+}
+
+void
+tr_err(const char *msg)
+{
+	(void)fprintf(stderr, TR_PREFIX": %s\n", msg);
 }
 
 void
@@ -193,9 +227,15 @@ set_protocol(const char* proto_str)
 	else if (strcmp(proto_str, "icmp") == 0 || strcmp(proto_str, "ICMP") == 0)
 		return (TR_PROTO_ICMP);
 	else if (strcmp(proto_str, "tcp") == 0 || strcmp(proto_str, "TCP") == 0)
-		return (TR_PROTO_TCP);
+	{
+		tr_err("TCP protocol not implemented");
+		return (0);
+	}
 	else if (strcmp(proto_str, "gre") == 0 || strcmp(proto_str, "GRE") == 0)
-		return (TR_PROTO_GRE);
+	{
+		tr_err("GRE protocol not implemented");
+		return (0);
+	}
 
 	tr_bad_value("protocol", proto_str);
 	return (0);
@@ -262,25 +302,8 @@ time_diff_ms(struct timespec start, struct timespec end)
     return (end.tv_sec - start.tv_sec) * 1000.0 + (end.tv_nsec - start.tv_nsec) / 1e6;
 }
 
-int
-send_probe_udp(int send_sock, uint32_t dst_addr, uint16_t current_port, struct tr_params *params)
-{
-	uint8_t payload[TR_MAX_PACKET_LEN];
-
-	memset(payload, 0, params->packet_len);
-
-	struct sockaddr_in dst;
-	memset(&dst, 0, sizeof(dst));
-
-	dst.sin_family = AF_INET;
-	dst.sin_addr = *(struct in_addr *)&dst_addr;
-	dst.sin_port = htons(current_port);
-
-	return (sendto(send_sock, payload, params->packet_len, 0, (struct sockaddr*)&dst, sizeof(dst)));
-}
-
 static uint16_t
-checksum(const void *buf, size_t len)
+tcp_checksum(const void *buf, size_t len)
 {
     const uint16_t *data = buf;
     uint32_t sum = 0;
@@ -296,25 +319,86 @@ checksum(const void *buf, size_t len)
     return (uint16_t)(~sum & 0xFFFF);
 }
 
+static uint16_t
+icmp_checksum(const void *data, size_t len)
+{
+    const uint16_t *ptr = data;
+    uint32_t sum = 0;
+    size_t nleft = len;
+
+    while (nleft > 1) {
+        sum += *ptr++;
+        nleft -= 2;
+    }
+
+    if (nleft == 1) {
+        uint16_t odd_byte = 0;
+        *(uint8_t *)&odd_byte = *(const uint8_t *)ptr;
+        sum += odd_byte;
+    }
+
+    while (sum >> 16)
+        sum = (sum & 0xFFFF) + (sum >> 16);
+
+    return (uint16_t)(~sum);
+}
+
+int
+send_probe_udp(int send_sock, uint32_t dst_addr, uint16_t current_port, struct tr_params *params)
+{
+	/**
+	 * Les trames UDP suivent la structure suivante :
+	 * ┌────────────────────────────┐
+	 * │ IP header                  │  ← struct ip
+	 * ├────────────────────────────┤
+	 * │ UDP header                 │  ← struct udphdr
+	 * ├────────────────────────────┤
+	 * │ payload (données)          │
+	 * └────────────────────────────┘
+	 */
+	uint8_t payload[TR_MAX_PACKET_LEN];
+
+	memset(payload, 0, params->packet_len);
+
+	struct sockaddr_in dst;
+	memset(&dst, 0, sizeof(dst));
+
+	dst.sin_family = AF_INET;
+	dst.sin_addr = *(struct in_addr *)&dst_addr;
+	dst.sin_port = htons(current_port);
+
+	return (sendto(send_sock, payload, params->packet_len, 0, (struct sockaddr*)&dst, sizeof(dst)));
+}
+
 int
 send_probe_tcp(int send_sock, uint32_t dst_addr, uint16_t current_port, struct tr_params *params)
 {
+	/**
+	 * INFO:
+	 * Cette fonction est un test d'une implémentation basique d'envoi de paquets TCP SYN
+	 */
+
 	struct tcphdr tcph;
 	memset(&tcph, 0, sizeof(tcph));
 
 	srand((unsigned)time(NULL) ^ (unsigned)getpid());
+	// Génère un port source aléatoire entre 1024 et 65535
 	uint16_t src_port = (uint16_t)(1024 + (rand() % (65535-1024)));
 
 	tcph.th_sport = htons(src_port);
-	tcph.th_dport = htons(current_port);
-	tcph.th_seq = htonl((uint32_t)rand());
-	tcph.th_ack = 0;
-	tcph.th_off = 5; // 5 * 4 = 20 bytes (no options)
-	tcph.th_flags = TH_SYN;
-	tcph.th_win = htons(64240);
-	tcph.th_sum = 0;
-	tcph.th_urp = 0;
+    tcph.th_dport = htons(current_port);
+    tcph.th_seq   = htonl((uint32_t)rand());
+    tcph.th_ack   = 0;
+    tcph.th_off   = sizeof(struct tcphdr) / 4; // data offset in 32-bit words
+    tcph.th_flags = TH_SYN;                    // SYN flag
+    tcph.th_win   = htons(64240);
+    tcph.th_urp   = 0;
+    tcph.th_sum   = 0;
 
+	/**
+	 * Le pseudo-header inclut des informations de l'en-tête IP
+	 * nécessaires pour le calcul de la checksum TCP.
+	 */
 	struct {
 		uint32_t saddr;
 		uint32_t daddr;
@@ -330,16 +414,12 @@ send_probe_tcp(int send_sock, uint32_t dst_addr, uint16_t current_port, struct t
 	psh.tcp_len = htons(sizeof(struct tcphdr));
 
 	size_t psize = sizeof(psh) + sizeof(struct tcphdr);
-	uint8_t *pbuf = malloc(psize);
-	if (!pbuf) {
-		perror("malloc");
-		return -1;
-	}
+	uint8_t pbuf[sizeof(psh) + sizeof(struct tcphdr)];
+
 	memcpy(pbuf, &psh, sizeof(psh));
 	memcpy(pbuf + sizeof(psh), &tcph, sizeof(struct tcphdr));
 
-	tcph.th_sum = checksum(pbuf, psize);
-	free(pbuf);
+	tcph.th_sum = tcp_checksum(pbuf, psize);
 
 	size_t packet_len = sizeof(struct tcphdr);
 	uint8_t packet[sizeof(struct tcphdr)];
@@ -355,6 +435,64 @@ send_probe_tcp(int send_sock, uint32_t dst_addr, uint16_t current_port, struct t
 }
 
 int
+send_probe_icmp(int send_sock, uint32_t dst_addr, uint16_t current_port, struct tr_params *params)
+{
+	(void)current_port;
+
+	/**
+	 * Les trames ICMP suivent la structure suivante :
+	 * ┌────────────────────────────┐
+	 * │ IP header                  │  ← struct ip
+	 * ├────────────────────────────┤
+	 * │ ICMP header                │  ← struct icmp
+	 * │   type = 8 (Echo Request)  │
+	 * │   code = 0                 │
+	 * │   checksum                 │
+	 * │   id                       │
+	 * │   seq                      │
+	 * ├────────────────────────────┤
+	 * │ payload (facultatif)       │
+	 * └────────────────────────────┘
+	 */
+	struct icmp icmp_hdr;
+	memset(&icmp_hdr, 0, sizeof(icmp_hdr));
+
+	icmp_hdr.icmp_type = ICMP_ECHO;
+	icmp_hdr.icmp_code = 0;
+	icmp_hdr.icmp_id   = htons(getpid() & 0xFFFF);
+	icmp_hdr.icmp_seq  = htons(current_port);
+
+	char payload[32] = "ICMP traceroute probe";
+	size_t packet_size = sizeof(icmp_hdr) + sizeof(payload);
+	unsigned char packet[sizeof(icmp_hdr) + sizeof(payload)];
+	memcpy(packet, &icmp_hdr, sizeof(icmp_hdr));
+	memcpy(packet + sizeof(icmp_hdr), payload, sizeof(payload));
+
+	struct icmp *icmp_packet = (struct icmp *)packet;
+    icmp_packet->icmp_cksum = icmp_checksum(packet, packet_size);
+
+	struct sockaddr_in dst;
+	memset(&dst, 0, sizeof(dst));
+
+	dst.sin_family = AF_INET;
+	dst.sin_addr = *(struct in_addr *)&dst_addr;
+
+	// _print_icmp(packet, packet_size);
+
+    return (sendto(send_sock, packet, packet_size, 0, (struct sockaddr *)&dst, sizeof(dst)));
+}
+
+int
+send_probe_gre(int send_sock, uint32_t dst_addr, uint16_t current_port, struct tr_params *params)
+{
+	/**
+	 * INFO:
+	 * Le protocole GRE permet d'encapsuler divers protocoles réseau.
+	 */
+	return (0);
+}
+
+int
 send_probe(int send_sock, uint32_t dst_addr, uint16_t current_port, struct tr_params *params)
 {
 	switch (params->protocol)
@@ -363,8 +501,70 @@ send_probe(int send_sock, uint32_t dst_addr, uint16_t current_port, struct tr_pa
 		return (send_probe_udp(send_sock, dst_addr, current_port, params));
 	case TR_PROTO_TCP:
 		return (send_probe_tcp(send_sock, dst_addr, current_port, params));
+	case TR_PROTO_ICMP:
+		return (send_probe_icmp(send_sock, dst_addr, current_port, params));
+	case TR_PROTO_GRE:
+		return (send_probe_gre(send_sock, dst_addr, current_port, params));
 	}
 	return (0);
+}
+
+int
+is_valid_udp_response(struct icmp *icmp, uint32_t current_port, struct tr_params *params)
+{
+	/**
+	 * Lorsque le TTL expire, le routeur envoie un message ICMP de type 11 (Time Exceeded),
+	 * est inclue dans le réponse ICMP la requête IP originale ayant provoqué le message ICMP,
+	 * ce qui permet d'identifier la probe correspondante.
+	 */
+	struct ip *inner_ip = (struct ip *)(icmp->icmp_data);
+	int inner_len = inner_ip->ip_hl * 4;
+	// On récupère le contenu UDP de la requête originale
+	struct udphdr *inner_udp = (struct udphdr *)((uint8_t *)inner_ip + inner_len);
+
+	uint16_t dport = ntohs(inner_udp->uh_dport);
+
+	// On s'assure que le protocole de la requête correspond bien à de l'UDP
+	if (params->protocol == TR_PROTO_UDP && inner_ip->ip_p != IPPROTO_UDP)
+	{
+		return (0);
+	}
+
+	// On s'assure ensuite que le port de destination correspond bien à celui de la probe envoyée
+	if (dport != current_port)
+	{
+		return (0);
+	}
+
+	return (1);
+}
+
+int
+is_valid_icmp_response(struct icmp *icmp, uint32_t current_port, struct tr_params *params)
+{
+	/**
+	 * Lorsque le TTL expire, le routeur envoie un message ICMP de type 11 (Time Exceeded),
+	 * est inclue dans le réponse ICMP la requête IP originale ayant provoqué le message ICMP,
+	 * ce qui permet d'identifier la probe correspondante.
+	 */
+	struct ip *inner_ip = (struct ip *)(icmp->icmp_data);
+	int inner_len = inner_ip->ip_hl * 4;
+
+	// Extraction de la trame ICMP originale renvoyée par le routeur
+	struct icmp *inner_icmp = (struct icmp *)((uint8_t *)inner_ip + inner_len);
+
+	// On s'assure que les informations contenues dans trame ICMP recues correspondent à la probe envoyée
+
+	if (inner_icmp->icmp_type != ICMP_ECHO)
+		return (0);
+
+	if (inner_icmp->icmp_id != htons(getpid() & 0xFFFF))
+		return (0);
+
+	if (inner_icmp->icmp_seq != htons(current_port))
+		return (0);
+
+	return (1);
 }
 
 int
@@ -463,28 +663,22 @@ trace(int send_sock, int recv_sock, uint32_t dst_addr, struct tr_params *params)
 				// Le contenu ICMP commence après l'en-tête IP
 				icmp = (struct icmp *)(buff + ip_header_len);
 
-				/**
-				 * Lorsque le TTL expire, le routeur envoie un message ICMP de type 11 (Time Exceeded),
-				 * est inclue dans le réponse ICMP la requête IP originale ayant provoqué le message ICMP,
-				 * ce qui permet d'identifier la probe correspondante.
-				 */
-				struct ip *inner_ip = (struct ip *)(icmp->icmp_data);
-				int inner_len = inner_ip->ip_hl * 4;
-				// On récupère le contenu UDP de la requête originale
-				struct udphdr *inner_udp = (struct udphdr *)((uint8_t *)inner_ip + inner_len);
+				// _print_icmp((uint8_t *)icmp, n - ip_header_len);
 
-				uint16_t dport = ntohs(inner_udp->uh_dport);
-
-				// On s'assure que le protocole de la requête correspond bien à de l'UDP
-				if (inner_ip->ip_p != IPPROTO_UDP)
+				switch (params->protocol)
 				{
-					continue;
-				}
-
-				// On s'assure ensuite que le port de destination correspond bien à celui de la probe envoyée
-				if (dport != current_port)
-				{
-					continue;
+				case TR_PROTO_UDP:
+					if (!is_valid_udp_response(icmp, current_port, params))
+						continue;
+					break;
+				case TR_PROTO_ICMP:
+					if (!is_valid_icmp_response(icmp, current_port, params))
+						continue;
+					break;
+				case TR_PROTO_TCP:
+				case TR_PROTO_GRE:
+					tr_err("protocol response validation not implemented");
+					return (1);
 				}
 
 				got_reply = 1;
@@ -570,7 +764,8 @@ main(int argc, char **argv)
 				params.max_ttl = tr_params("max ttl", optarg, 1, TR_MAX_TTL);
 				break;
 			case 'P':
-				params.protocol = set_protocol(optarg);
+				if ((params.protocol = set_protocol(optarg)) == 0)
+					return (1);
 				break;
 			case 'p':
 				params.port = tr_params("port", optarg, 1, TR_MAX_PORT);
