@@ -6,7 +6,7 @@
 /*   By: mgama <mgama@student.42lyon.fr>            +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/10/19 21:57:01 by mgama             #+#    #+#             */
-/*   Updated: 2025/10/19 22:23:43 by mgama            ###   ########.fr       */
+/*   Updated: 2025/10/19 23:01:46 by mgama            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -37,8 +37,8 @@ get_destination_ip_addr(const char *host, struct tr_params *params)
 		if (hostent->h_addr_list[1] != NULL)
 		{
 			char ip_str[INET_ADDRSTRLEN];
-			inet_ntop(AF_INET, hostent->h_addr_list[0], ip_str, sizeof(ip_str));
-			fprintf(stderr, TR_PREFIX": Warning: %s has multiple addresses; using %s\n", host, ip_str);
+			(void)inet_ntop(AF_INET, hostent->h_addr_list[0], ip_str, sizeof(ip_str));
+			(void)fprintf(stderr, TR_PREFIX": Warning: %s has multiple addresses; using %s\n", host, ip_str);
 		}
 
 		char **addr = hostent->h_addr_list;
