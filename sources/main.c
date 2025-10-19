@@ -6,7 +6,7 @@
 /*   By: mgama <mgama@student.42lyon.fr>            +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/10/18 15:23:52 by mgama             #+#    #+#             */
-/*   Updated: 2025/10/19 22:48:53 by mgama            ###   ########.fr       */
+/*   Updated: 2025/10/19 23:06:06 by mgama            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -31,7 +31,7 @@ time_diff_ms(struct timespec start, struct timespec end)
 int
 trace(int send_sock, int recv_sock, uint32_t dst_addr, struct tr_params *params)
 {
-	for (int ttl = params->first_ttl; ttl <= params->max_ttl; ++ttl)
+	for (uint32_t ttl = params->first_ttl; ttl <= params->max_ttl; ++ttl)
 	{
 		/**
 		 * Définit le TTL du socket d'envoi
@@ -43,7 +43,7 @@ trace(int send_sock, int recv_sock, uint32_t dst_addr, struct tr_params *params)
 		uint32_t last_addr_reached = 0;
 		int dest_reached = 0;
 
-		for (int probe = 0; probe < params->nprobes; ++probe)
+		for (uint32_t probe = 0; probe < params->nprobes; ++probe)
 		{
 			int got_reply = 0;
 

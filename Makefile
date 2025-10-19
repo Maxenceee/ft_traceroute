@@ -10,7 +10,7 @@ HEADERS			=	$(shell find $(HEADERS_DIR) -name "*.h")
 
 CC				=	gcc
 RM				=	rm
-CFLAGS			:=	-I$(HEADERS_DIR) -I$(MANDATORY_DIR) -g3 -O0 #-Wall -Wextra -Werror
+CFLAGS			:=	-I$(HEADERS_DIR) -I$(MANDATORY_DIR) -g3 -O0 -Wall -Wextra -Werror
 
 NAME			=	ft_traceroute
 
@@ -36,8 +36,8 @@ $(NAME): $(OBJS)
 
 privilege:
 	@echo "$(BLUE)Setting SUID on $(NAME)$(DEFAULT)"
-	@chown root $(NAME)
-	@chmod u+s $(NAME)
+	@sudo chown root $(NAME)
+	@sudo chmod u+s $(NAME)
 
 clean:
 	@echo "$(RED)Cleaning build folder$(DEFAULT)"

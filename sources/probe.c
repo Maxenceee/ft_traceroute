@@ -6,7 +6,7 @@
 /*   By: mgama <mgama@student.42lyon.fr>            +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/10/19 21:52:32 by mgama             #+#    #+#             */
-/*   Updated: 2025/10/19 22:19:03 by mgama            ###   ########.fr       */
+/*   Updated: 2025/10/19 23:06:56 by mgama            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -107,6 +107,7 @@ static int
 send_probe_icmp(int send_sock, uint32_t dst_addr, uint16_t current_port, struct tr_params *params)
 {
 	(void)current_port;
+	(void)params;
 
 	/**
 	 * Les trames ICMP suivent la structure suivante :
@@ -152,6 +153,11 @@ send_probe_icmp(int send_sock, uint32_t dst_addr, uint16_t current_port, struct 
 static int
 send_probe_gre(int send_sock, uint32_t dst_addr, uint16_t current_port, struct tr_params *params)
 {
+	(void)send_sock;
+	(void)dst_addr;
+	(void)current_port;
+	(void)params;
+	
 	/**
 	 * INFO:
 	 * Le protocole GRE permet d'encapsuler divers protocoles réseau.

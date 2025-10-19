@@ -6,7 +6,7 @@
 /*   By: mgama <mgama@student.42lyon.fr>            +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/10/19 21:54:07 by mgama             #+#    #+#             */
-/*   Updated: 2025/10/19 22:17:02 by mgama            ###   ########.fr       */
+/*   Updated: 2025/10/19 23:04:34 by mgama            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -46,6 +46,8 @@ is_valid_udp_response(struct icmp *icmp, uint32_t current_port, struct tr_params
 static int
 is_valid_icmp_response(struct icmp *icmp, uint32_t current_port, struct tr_params *params)
 {
+	(void)params;
+
 	if (icmp->icmp_type == ICMP_ECHOREPLY)
 	{
 		/**

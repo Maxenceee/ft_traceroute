@@ -6,7 +6,7 @@
 /*   By: mgama <mgama@student.42lyon.fr>            +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/10/19 21:47:02 by mgama             #+#    #+#             */
-/*   Updated: 2025/10/19 22:08:46 by mgama            ###   ########.fr       */
+/*   Updated: 2025/10/19 23:05:23 by mgama            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -32,7 +32,7 @@ _print_icmp(uint8_t *packet, size_t packet_size)
 		(void)printf("%02x ", p[i]);
 		if ((i % 16) == 15 || i == packet_size - 1) {
 			/* pad hex column if line not complete */
-			int pad = 15 - (i % 16);
+			size_t pad = 15 - (i % 16);
 			for (j = 0; j < pad; ++j)
 				(void)printf("   ");
 			(void)printf(" ");
