@@ -6,7 +6,7 @@
 /*   By: mgama <mgama@student.42lyon.fr>            +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/10/18 15:22:47 by mgama             #+#    #+#             */
-/*   Updated: 2025/10/19 22:53:53 by mgama            ###   ########.fr       */
+/*   Updated: 2025/10/19 23:33:10 by mgama            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -31,6 +31,7 @@
 #include <sys/sysctl.h>
 
 #include <arpa/inet.h>
+#include <net/if.h>
 #include <netinet/in.h>
 #include <netinet/ip.h>
 #include <netinet/ip_icmp.h>
@@ -70,6 +71,7 @@ struct tr_params {
 	uint16_t	packet_len;
 	int			protocol;
 	uint32_t	local_addr;
+	char		*ifname;
 };
 
 #define verbose(x) ((x & TR_FLAG_VERBOSE) == 1)
@@ -107,6 +109,7 @@ void	tr_bad_value(const char *key, const char *val);
 
 int		tr_params(const char *key, const char *val, int min, int max);
 
+int			assign_iface(int sock, struct tr_params *params);
 uint32_t	get_destination_ip_addr(const char *host, struct tr_params *params);
 int			set_protocol(const char* proto_str);
 int			create_socket(struct tr_params *params);

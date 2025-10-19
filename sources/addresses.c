@@ -6,11 +6,66 @@
 /*   By: mgama <mgama@student.42lyon.fr>            +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/10/19 21:57:01 by mgama             #+#    #+#             */
-/*   Updated: 2025/10/19 23:01:46 by mgama            ###   ########.fr       */
+/*   Updated: 2025/10/19 23:45:09 by mgama            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "traceroute.h"
+#include "debug.h"
+
+int
+assign_iface(int sock, struct tr_params *params)
+{
+	struct ifaddrs *ifap, *ifa, *curr, *assigned = NULL;
+
+	(void)getifaddrs(&ifap);
+	for (ifa = ifap; ifa; ifa = ifa->ifa_next)
+	{
+		if (params->ifname != NULL && (ifa->ifa_flags & IFF_UP) && strcmp(ifa->ifa_name, params->ifname) == 0)
+		{
+			assigned = ifa;
+		}
+		if (ifa->ifa_addr && ifa->ifa_addr->sa_family == AF_INET)
+		{
+			struct sockaddr_in *sa = (struct sockaddr_in *)ifa->ifa_addr;
+			_print_ip(sa->sin_addr.s_addr, ifa->ifa_name);
+			if (sa->sin_addr.s_addr == params->local_addr)
+				curr = ifa;
+		}
+	}
+
+	if (curr == NULL)
+	{
+		tr_err("Can't find current interface");
+		freeifaddrs(ifap);
+		return (0);
+	}
+
+	if (params->ifname != NULL && assigned == NULL)
+	{
+		(void)fprintf(stderr, TR_PREFIX": Can't find interface %s\n", params->ifname);
+		freeifaddrs(ifap);
+		return (0);
+	}
+	else if (params->ifname != NULL && assigned != NULL)
+	{
+		if (setsockopt(sock, SOL_SOCKET, SO_BINDTODEVICE, params->ifname, strlen(params->ifname)) < 0)
+		{
+			tr_perr("setsockopt");
+			freeifaddrs(ifap);
+			return (0);
+		}
+		curr = assigned;
+	}
+
+	if (verbose(params->flags))
+	{
+		printf("Using interface: %s\n", curr->ifa_name);
+	}
+
+	freeifaddrs(ifap);
+	return (1);
+}
 
 uint32_t
 get_destination_ip_addr(const char *host, struct tr_params *params)
@@ -63,6 +118,12 @@ get_destination_ip_addr(const char *host, struct tr_params *params)
 		return (0);
 	}
 
+	if (params->ifname != NULL && setsockopt(sock, SOL_SOCKET, SO_BINDTODEVICE, params->ifname, strlen(params->ifname)) < 0)
+	{
+		tr_perr("setsockopt");
+		return (0);
+	}
+
 	struct sockaddr_in dst;
 	memset(&dst, 0, sizeof(dst));
 	dst.sin_family = AF_INET;
@@ -82,32 +143,12 @@ get_destination_ip_addr(const char *host, struct tr_params *params)
 	{
 		tr_perr("getsockname");
 		(void)close(sock);
-		return 0;
+		return (0);
 	}
 
 	params->local_addr = local.sin_addr.s_addr;
 
-	/**
-	 * Afin de récupérer le nom de l'interface réseau utilisée pour atteindre
-	 * la destination, nous parcourons la liste des interfaces réseau et on compare
-	 * l'adresse IP locale obtenue précédemment.
-	 */
-	if (verbose(params->flags))
-	{
-		struct ifaddrs *ifap, *ifa;
-		(void)getifaddrs(&ifap);
-		for (ifa = ifap; ifa; ifa = ifa->ifa_next)
-		{
-			if (ifa->ifa_addr && ifa->ifa_addr->sa_family == AF_INET)
-			{
-				struct sockaddr_in *sa = (struct sockaddr_in *)ifa->ifa_addr;
-				if (sa->sin_addr.s_addr == local.sin_addr.s_addr)
-					printf("Using interface: %s\n", ifa->ifa_name);
-			}
-		}
-		freeifaddrs(ifap);
-		(void)close(sock);
-	}
+	(void)close(sock);
 	return (dst.sin_addr.s_addr);
 }
 

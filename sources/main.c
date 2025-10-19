@@ -6,7 +6,7 @@
 /*   By: mgama <mgama@student.42lyon.fr>            +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/10/18 15:23:52 by mgama             #+#    #+#             */
-/*   Updated: 2025/10/19 23:11:56 by mgama            ###   ########.fr       */
+/*   Updated: 2025/10/19 23:37:36 by mgama            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -208,12 +208,16 @@ main(int argc, char **argv)
 	params.nprobes = TR_DEFAULT_PROBES;
 	params.waittime = TR_DEFAULT_TIMEOUT;
 	params.protocol = TR_PROTO_UDP;
+	params.ifname = NULL;
 
 	params.flags = 0;
-    while ((ch = getopt(argc, argv, "f:IM:m:P:p:q:vw:")) != -1) {
+    while ((ch = getopt(argc, argv, "f:Ii:M:m:P:p:q:vw:")) != -1) {
 		switch (ch) {
 			case 'I':
 				params.protocol = TR_PROTO_ICMP;
+				break;
+			case 'i':
+				params.ifname = optarg;
 				break;
 			case 'f':
 			case 'M':
@@ -255,17 +259,28 @@ main(int argc, char **argv)
 		params.packet_len = tr_params("packet length", argv[optind + 1], 27, TR_MAX_PACKET_LEN);
 	}
 
-	uint32_t dst_addr = get_destination_ip_addr(target, &params);
-	if (dst_addr == 0)
-	{
-		(void)fprintf(stderr, "traceroute: unknown host %s\n", target);
-		return (1);
-	}
-
 	int send_sock = create_socket(&params);
 	if (send_sock < 0)
 	{
 		tr_perr("socket");
+		return (1);
+	}
+
+	/**
+	 * Afin de récupérer le nom de l'interface réseau utilisée pour atteindre
+	 * la destination, nous parcourons la liste des interfaces réseau et on compare
+	 * l'adresse IP locale obtenue précédemment.
+	 */
+	if (assign_iface(send_sock, &params) == 0)
+	{
+		(void)close(send_sock);
+		return (0);
+	}
+
+	uint32_t dst_addr = get_destination_ip_addr(target, &params);
+	if (dst_addr == 0)
+	{
+		(void)fprintf(stderr, "traceroute: unknown host %s\n", target);
 		return (1);
 	}
 	
@@ -273,6 +288,8 @@ main(int argc, char **argv)
 	if (recv_sock < 0)
 	{
 		tr_perr("socket");
+		(void)close(send_sock);
+		(void)close(recv_sock);
 		return (1);
 	}
 
@@ -281,5 +298,8 @@ main(int argc, char **argv)
 
 	(void)printf(TR_PREFIX" to %s (%s), %d hops max, %d byte packets\n", target, ip_str, params.max_ttl, params.packet_len);
 
-	return (trace(send_sock, recv_sock, dst_addr, &params));
+	int res = trace(send_sock, recv_sock, dst_addr, &params);
+	(void)close(send_sock);
+	(void)close(recv_sock);
+	return (res);
 }
