@@ -6,7 +6,7 @@
 /*   By: mgama <mgama@student.42lyon.fr>            +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/10/19 21:49:54 by mgama             #+#    #+#             */
-/*   Updated: 2025/10/19 21:50:18 by mgama            ###   ########.fr       */
+/*   Updated: 2025/10/19 22:03:11 by mgama            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -32,7 +32,7 @@ tr_params(const char *key, const char *val, int min, int max)
 	}
 	int pval = atoi(val);
 	if (pval < min) {
-		(void)fprintf(stderr, TR_PREFIX": %s must be > %d\n", key, min);
+		(void)fprintf(stderr, TR_PREFIX": %s must be > %d\n", key, min - 1);
 		exit(1);
 	}
 	if (pval > max) {

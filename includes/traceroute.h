@@ -6,7 +6,7 @@
 /*   By: mgama <mgama@student.42lyon.fr>            +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/10/18 15:22:47 by mgama             #+#    #+#             */
-/*   Updated: 2025/10/19 21:59:06 by mgama            ###   ########.fr       */
+/*   Updated: 2025/10/19 22:53:53 by mgama            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -72,6 +72,32 @@ struct tr_params {
 	uint32_t	local_addr;
 };
 
+#define verbose(x) ((x & TR_FLAG_VERBOSE) == 1)
+
+static const char* icmp_type_names[] = {
+	"Echo Reply",
+	"Reserved",
+	"Reserved",
+	"Dest Unreachable",
+	"Source Quench",
+	"Redirect Message",
+	"deprecated",
+	"Reserved",
+	"Echo Request",
+	"Router Advertisement",
+	"Router Solicitation",
+	"Time Exceeded",
+	"Parameter Problem: Bad IP header",
+	"Timestamp",
+	"Timestamp Reply",
+	"Information Request",
+	"Information Reply",
+	"Address Mask Request",
+	"Address Mask Reply",
+	"Reserved",
+};
+
+
 /* Function prototypes */
 
 void	tr_err(const char *msg);
@@ -87,6 +113,7 @@ int			create_socket(struct tr_params *params);
 
 void	print_router_name(struct sockaddr *sa);
 void	print_router_rtt(struct timespec start, struct timespec end);
+void	print_verbose_response(uint8_t *packet, size_t packet_size);
 
 uint16_t	tcp_checksum(const void *buf, size_t len);
 uint16_t	icmp_checksum(const void *buf, size_t len);

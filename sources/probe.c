@@ -6,7 +6,7 @@
 /*   By: mgama <mgama@student.42lyon.fr>            +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/10/19 21:52:32 by mgama             #+#    #+#             */
-/*   Updated: 2025/10/19 21:53:52 by mgama            ###   ########.fr       */
+/*   Updated: 2025/10/19 22:19:03 by mgama            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -145,8 +145,6 @@ send_probe_icmp(int send_sock, uint32_t dst_addr, uint16_t current_port, struct 
 
 	dst.sin_family = AF_INET;
 	dst.sin_addr = *(struct in_addr *)&dst_addr;
-
-	// _print_icmp(packet, packet_size);
 
     return (sendto(send_sock, packet, packet_size, 0, (struct sockaddr *)&dst, sizeof(dst)));
 }

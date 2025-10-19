@@ -6,7 +6,7 @@
 /*   By: mgama <mgama@student.42lyon.fr>            +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/10/19 21:57:01 by mgama             #+#    #+#             */
-/*   Updated: 2025/10/19 22:00:00 by mgama            ###   ########.fr       */
+/*   Updated: 2025/10/19 22:23:43 by mgama            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -45,7 +45,16 @@ get_destination_ip_addr(const char *host, struct tr_params *params)
         memcpy(&in, *addr, sizeof(struct in_addr));
 	}
 
-	// _print_ip(in.s_addr, "Target IP");
+	/**
+	 * Notre programme nécessite de connaître l'adresse IP locale utilisée
+	 * pour envoyer des paquets vers la destination, afin de construire
+	 * des en-têtes IP appropriés.
+	 * 
+	 * Pour cela, on crée un socket UDP temporaire et on se connecte
+	 * à l'adresse de destination. Cela permet au système d'exploitation
+	 * de déterminer l'adresse IP locale à utiliser pour l'envoi des paquets
+	 * ainsi que l'interface réseau correspondante.
+	 */
 
 	int sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
 	if (sock < 0)
@@ -78,21 +87,27 @@ get_destination_ip_addr(const char *host, struct tr_params *params)
 
 	params->local_addr = local.sin_addr.s_addr;
 
-	// _print_ip(params->local_addr, "Default local IP");
-
-	struct ifaddrs *ifap, *ifa;
-	(void)getifaddrs(&ifap);
-	for (ifa = ifap; ifa; ifa = ifa->ifa_next)
+	/**
+	 * Afin de récupérer le nom de l'interface réseau utilisée pour atteindre
+	 * la destination, nous parcourons la liste des interfaces réseau et on compare
+	 * l'adresse IP locale obtenue précédemment.
+	 */
+	if (verbose(params->flags))
 	{
-		if (ifa->ifa_addr && ifa->ifa_addr->sa_family == AF_INET)
+		struct ifaddrs *ifap, *ifa;
+		(void)getifaddrs(&ifap);
+		for (ifa = ifap; ifa; ifa = ifa->ifa_next)
 		{
-			struct sockaddr_in *sa = (struct sockaddr_in *)ifa->ifa_addr;
-			if (sa->sin_addr.s_addr == local.sin_addr.s_addr)
-				printf("Using interface: %s\n", ifa->ifa_name);
+			if (ifa->ifa_addr && ifa->ifa_addr->sa_family == AF_INET)
+			{
+				struct sockaddr_in *sa = (struct sockaddr_in *)ifa->ifa_addr;
+				if (sa->sin_addr.s_addr == local.sin_addr.s_addr)
+					printf("Using interface: %s\n", ifa->ifa_name);
+			}
 		}
+		freeifaddrs(ifap);
+		(void)close(sock);
 	}
-	freeifaddrs(ifap);
-	(void)close(sock);
 	return (dst.sin_addr.s_addr);
 }
 

@@ -6,7 +6,7 @@
 /*   By: mgama <mgama@student.42lyon.fr>            +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/10/19 21:47:02 by mgama             #+#    #+#             */
-/*   Updated: 2025/10/19 21:47:13 by mgama            ###   ########.fr       */
+/*   Updated: 2025/10/19 22:08:46 by mgama            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -45,5 +45,17 @@ _print_icmp(uint8_t *packet, size_t packet_size)
 			(void)printf("\n");
 		}
 	}
+	(void)fflush(stdout);
+}
+
+void
+_print_icmp_header(struct icmp *icmp)
+{
+	(void)printf("ICMP Header:\n");
+	(void)printf("  Type: %d\n", icmp->icmp_type);
+	(void)printf("  Code: %d\n", icmp->icmp_code);
+	(void)printf("  Checksum: 0x%04x\n", ntohs(icmp->icmp_cksum));
+	(void)printf("  ID: 0x%04x\n", ntohs(icmp->icmp_id));
+	(void)printf("  Sequence: 0x%04x\n", ntohs(icmp->icmp_seq));
 	(void)fflush(stdout);
 }

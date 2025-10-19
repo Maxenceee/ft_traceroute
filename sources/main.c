@@ -6,7 +6,7 @@
 /*   By: mgama <mgama@student.42lyon.fr>            +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/10/18 15:23:52 by mgama             #+#    #+#             */
-/*   Updated: 2025/10/19 22:01:52 by mgama            ###   ########.fr       */
+/*   Updated: 2025/10/19 22:48:53 by mgama            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -124,14 +124,18 @@ trace(int send_sock, int recv_sock, uint32_t dst_addr, struct tr_params *params)
 				// Le contenu ICMP commence après l'en-tête IP
 				icmp = (struct icmp *)(buff + ip_header_len);
 
-				// _print_icmp((uint8_t *)icmp, n - ip_header_len);
-
 				/**
 				 * Application du filtre de validation des réponses ICMP reçues
 				 * en fonction du protocole utilisé pour envoyer les probes.
 				 */
 				if (!is_valid_response(icmp, current_port, params))
+				{
+					if (verbose(params->flags))
+					{
+						print_verbose_response((uint8_t *)ip, n);
+					}
 					continue;
+				}
 
 				got_reply = 1;
 
