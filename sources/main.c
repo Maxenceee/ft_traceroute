@@ -6,7 +6,7 @@
 /*   By: mgama <mgama@student.42lyon.fr>            +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/10/18 15:23:52 by mgama             #+#    #+#             */
-/*   Updated: 2025/10/19 16:09:56 by mgama            ###   ########.fr       */
+/*   Updated: 2025/10/19 16:26:15 by mgama            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -106,85 +106,82 @@ uint32_t
 get_destination_ip_addr(const char *host)
 {
 	struct in_addr in;
+
 	/**
-	 * Si l'hôte est une adresse IP directe, on la retourne immédiatement
+	 * On tente d'abord de convertir l'hôte en adresse IP directement.
+	 * Si cela échoue, on effectue une résolution DNS sur le nom d'hôte.
 	 */
-	if (inet_pton(AF_INET, host, &in) == 1) {
-		return (in.s_addr);
+	if (inet_pton(AF_INET, host, &in) == 0)
+	{
+		struct hostent *hostent = gethostbyname(host);
+		if (hostent == NULL || hostent->h_addr_list[0] == NULL)
+		{
+			return 0;
+		}
+
+		/**
+		 * L'implémentation de traceroute de BSD avertit lorsque
+		 * plusieurs adresses IP sont associées à un nom d'hôte et
+		 * ne prend que la première adresse.
+		 */
+		if (hostent->h_addr_list[1] != NULL)
+		{
+			char ip_str[INET_ADDRSTRLEN];
+			inet_ntop(AF_INET, hostent->h_addr_list[0], ip_str, sizeof(ip_str));
+			fprintf(stderr, TR_PREFIX": Warning: %s has multiple addresses; using %s\n", host, ip_str);
+		}
+
+		char **addr = hostent->h_addr_list;
+        memcpy(&in, *addr, sizeof(struct in_addr));
 	}
 
-	struct hostent *hostent = gethostbyname(host);
-	if (hostent == NULL || hostent->h_addr_list[0] == NULL)
+	_print_ip(in.s_addr, "Target IP");
+
+	int sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+	if (sock < 0)
 	{
+		perror("socket");
+		return (0);
+	}
+
+	struct sockaddr_in dst;
+	memset(&dst, 0, sizeof(dst));
+	dst.sin_family = AF_INET;
+	dst.sin_port = htons(53);
+	dst.sin_addr = in;
+
+	if (connect(sock, (struct sockaddr *)&dst, sizeof(dst)) < 0)
+	{
+		perror("connect");
+		close(sock);
+		return (0);
+	}
+
+	struct sockaddr_in local;
+	socklen_t len = sizeof(local);
+	if (getsockname(sock, (struct sockaddr *)&local, &len) < 0)
+	{
+		perror("getsockname");
+		close(sock);
 		return 0;
 	}
 
-	if (hostent->h_addr_list[1] != NULL)
+	_print_ip(local.sin_addr.s_addr, "Default local IP");
+
+	struct ifaddrs *ifap, *ifa;
+	(void)getifaddrs(&ifap);
+	for (ifa = ifap; ifa; ifa = ifa->ifa_next)
 	{
-		char ip_str[INET_ADDRSTRLEN];
-		inet_ntop(AF_INET, hostent->h_addr_list[0], ip_str, sizeof(ip_str));
-		fprintf(stderr, TR_PREFIX": Warning: %s has multiple addresses; using %s\n", host, ip_str);
+		if (ifa->ifa_addr && ifa->ifa_addr->sa_family == AF_INET)
+		{
+			struct sockaddr_in *sa = (struct sockaddr_in *)ifa->ifa_addr;
+			if (sa->sin_addr.s_addr == local.sin_addr.s_addr)
+				printf("Using interface: %s\n", ifa->ifa_name);
+		}
 	}
-
-	/**
-	 * Le DNS peut retourner plusieurs adresses IP pour un même nom d'hôte.
-	 * On essaie de se connecter à chacune d'entre elles jusqu'à trouver
-	 * une adresse IP locale valide.
-	 */
-	for (char **addr = hostent->h_addr_list; *addr != NULL; addr++)
-	{
-		int sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
-		if (sock < 0)
-		{
-			perror("socket");
-			return 0;
-		}
-
-		struct sockaddr_in dst;
-        memset(&dst, 0, sizeof(dst));
-        dst.sin_family = AF_INET;
-        dst.sin_port = htons(53);
-
-        struct in_addr in;
-        memcpy(&in, *addr, sizeof(struct in_addr));
-        dst.sin_addr = in;
-
-        _print_ip(in.s_addr, "Target IP");
-
-		if (connect(sock, (struct sockaddr *)&dst, sizeof(dst)) < 0)
-		{
-			perror("connect");
-			close(sock);
-			continue;
-		}
-
-		struct sockaddr_in local;
-		socklen_t len = sizeof(local);
-		if (getsockname(sock, (struct sockaddr *)&local, &len) < 0)
-		{
-			perror("getsockname");
-			close(sock);
-			return 0;
-		}
-
-		_print_ip(local.sin_addr.s_addr, "Default local IP");
-
-		struct ifaddrs *ifap, *ifa;
-		(void)getifaddrs(&ifap);
-		for (ifa = ifap; ifa; ifa = ifa->ifa_next)
-		{
-			if (ifa->ifa_addr && ifa->ifa_addr->sa_family == AF_INET)
-			{
-				struct sockaddr_in *sa = (struct sockaddr_in *)ifa->ifa_addr;
-				if (sa->sin_addr.s_addr == local.sin_addr.s_addr)
-					printf("Using interface: %s\n", ifa->ifa_name);
-			}
-		}
-		freeifaddrs(ifap);
-		close(sock);
-		return (dst.sin_addr.s_addr);
-	}
-	return 0;
+	freeifaddrs(ifap);
+	close(sock);
+	return (dst.sin_addr.s_addr);
 }
 
 int
@@ -511,14 +508,14 @@ main(int argc, char **argv)
 		return (1);
 	}
 
-	int send_sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+	int send_sock = create_socket(&params);
 	if (send_sock < 0)
 	{
 		perror("socket");
 		return (1);
 	}
 	
-	int recv_sock = create_socket(&params);
+	int recv_sock = socket(AF_INET, SOCK_RAW, IPPROTO_ICMP);
 	if (recv_sock < 0)
 	{
 		perror("socket");
