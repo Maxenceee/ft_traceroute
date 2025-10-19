@@ -6,7 +6,7 @@
 /*   By: mgama <mgama@student.42lyon.fr>            +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/10/18 15:22:47 by mgama             #+#    #+#             */
-/*   Updated: 2025/10/18 17:04:53 by mgama            ###   ########.fr       */
+/*   Updated: 2025/10/19 12:38:00 by mgama            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -19,6 +19,7 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <ctype.h>
+#include <time.h>
 #include <errno.h>
 
 #include <netdb.h>
@@ -36,19 +37,30 @@
 
 #include "verbose.h"
 
+#define TR_PREFIX "ft_traceroute"
+
 #define TR_DEFAULT_PROBES 3
+#define TR_MAX_PROBES 255
 #define TR_DEFAULT_FIRST_TTL 1
+#define TR_MAX_FIRST_TTL 255
+#define TR_MAX_TTL 255
 #define TR_DEFAULT_TIMEOUT 5
+#define TR_MAX_TIMEOUT 86400
 #define TR_DEFAULT_BASE_PORT 33434
+#define TR_MAX_PORT 65535
 #define TR_DEFAULT_PACKET_LEN 40
+#define TR_MAX_PACKET_LEN 2<<14
 
 #define TR_FLAG_VERBOSE 0x01
 
-struct tr_addr {
-	int send_sock;
-	uint32_t target_ip;
+struct tr_params {
+	uint8_t		flags;
+	uint32_t	first_ttl;
+	uint32_t	max_ttl;
+	uint32_t	port;
+	uint32_t	nprobes;
+	uint32_t	waittime;
+	uint16_t	packet_len;
 };
-
-#define invalid_addr (struct tr_addr){ -1, 0 }
 
 #endif /* TRACEROUTE_H */
