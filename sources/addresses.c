@@ -6,7 +6,7 @@
 /*   By: mgama <mgama@student.42lyon.fr>            +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/10/19 21:57:01 by mgama             #+#    #+#             */
-/*   Updated: 2025/10/20 00:35:04 by mgama            ###   ########.fr       */
+/*   Updated: 2025/10/20 00:40:10 by mgama            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -176,7 +176,7 @@ get_destination_ip_addr(const char *host, struct tr_params *params)
         memcpy(&in, *addr, sizeof(struct in_addr));
 	}
 
-	return (((struct sockaddr_in *)&in)->sin_addr.s_addr);
+	return (in.s_addr);
 }
 
 int
