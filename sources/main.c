@@ -6,7 +6,7 @@
 /*   By: mgama <mgama@student.42lyon.fr>            +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/10/18 15:23:52 by mgama             #+#    #+#             */
-/*   Updated: 2025/10/19 16:38:45 by mgama            ###   ########.fr       */
+/*   Updated: 2025/10/19 19:43:39 by mgama            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -102,7 +102,7 @@ get_max_ttl(void)
 }
 
 uint32_t
-get_destination_ip_addr(const char *host)
+get_destination_ip_addr(const char *host, struct tr_params *params)
 {
 	struct in_addr in;
 
@@ -165,7 +165,9 @@ get_destination_ip_addr(const char *host)
 		return 0;
 	}
 
-	_print_ip(local.sin_addr.s_addr, "Default local IP");
+	params->local_addr = local.sin_addr.s_addr;
+
+	_print_ip(params->local_addr, "Default local IP");
 
 	struct ifaddrs *ifap, *ifa;
 	(void)getifaddrs(&ifap);
@@ -211,12 +213,12 @@ create_socket(struct tr_params *params)
 	 */
 	switch (params->protocol)
 	{
-	case TR_PROTO_ICMP:
-		return (socket(AF_INET, SOCK_RAW, IPPROTO_ICMP));
 	case TR_PROTO_UDP:
 		return (socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP));
+	case TR_PROTO_ICMP:
+		return (socket(AF_INET, SOCK_RAW, IPPROTO_ICMP));
 	case TR_PROTO_TCP:
-		return (socket(AF_INET, SOCK_STREAM, IPPROTO_TCP));
+		return (socket(AF_INET, SOCK_RAW, IPPROTO_TCP));
 	case TR_PROTO_GRE:
 		return (socket(AF_INET, SOCK_RAW, IPPROTO_GRE));
 	default:
@@ -261,10 +263,113 @@ time_diff_ms(struct timespec start, struct timespec end)
 }
 
 int
-trace(int recv_sock, int send_sock, uint32_t dst_addr, struct tr_params *params)
+send_probe_udp(int send_sock, uint32_t dst_addr, uint16_t current_port, struct tr_params *params)
 {
 	uint8_t payload[TR_MAX_PACKET_LEN];
 
+	memset(payload, 0, params->packet_len);
+
+	struct sockaddr_in dst;
+	memset(&dst, 0, sizeof(dst));
+
+	dst.sin_family = AF_INET;
+	dst.sin_addr = *(struct in_addr *)&dst_addr;
+	dst.sin_port = htons(current_port);
+
+	return (sendto(send_sock, payload, params->packet_len, 0, (struct sockaddr*)&dst, sizeof(dst)));
+}
+
+static uint16_t
+checksum(const void *buf, size_t len)
+{
+    const uint16_t *data = buf;
+    uint32_t sum = 0;
+
+    while (len > 1) {
+        sum += *data++;
+        len -= 2;
+    }
+    if (len == 1) {
+        sum += *(const uint8_t *)data;
+    }
+    while (sum >> 16) sum = (sum & 0xFFFF) + (sum >> 16);
+    return (uint16_t)(~sum & 0xFFFF);
+}
+
+int
+send_probe_tcp(int send_sock, uint32_t dst_addr, uint16_t current_port, struct tr_params *params)
+{
+	struct tcphdr tcph;
+	memset(&tcph, 0, sizeof(tcph));
+
+	srand((unsigned)time(NULL) ^ (unsigned)getpid());
+	uint16_t src_port = (uint16_t)(1024 + (rand() % (65535-1024)));
+
+	tcph.th_sport = htons(src_port);
+	tcph.th_dport = htons(current_port);
+	tcph.seq = htonl((uint32_t)rand());
+	tcph.ack_seq = 0;
+	tcph.doff = 5; // 5 * 4 = 20 bytes (no options)
+	tcph.syn = 1;
+	tcph.window = htons(64240);
+	tcph.check = 0;
+	tcph.urg_ptr = 0;
+
+	struct {
+		uint32_t saddr;
+		uint32_t daddr;
+		uint8_t  zero;
+		uint8_t  proto;
+		uint16_t tcp_len;
+	} psh;
+
+	psh.saddr = params->local_addr;
+	psh.daddr = dst_addr;
+	psh.zero  = 0;
+	psh.proto = IPPROTO_TCP;
+	psh.tcp_len = htons(sizeof(struct tcphdr));
+
+	size_t psize = sizeof(psh) + sizeof(struct tcphdr);
+	uint8_t *pbuf = malloc(psize);
+	if (!pbuf) {
+		perror("malloc");
+		return -1;
+	}
+	memcpy(pbuf, &psh, sizeof(psh));
+	memcpy(pbuf + sizeof(psh), &tcph, sizeof(struct tcphdr));
+
+	tcph.check = checksum(pbuf, psize);
+	free(pbuf);
+
+	size_t packet_len = sizeof(struct tcphdr);
+	uint8_t packet[sizeof(struct tcphdr)];
+	memcpy(packet, &tcph, sizeof(struct tcphdr));
+
+	struct sockaddr_in dst;
+	memset(&dst, 0, sizeof(dst));
+	dst.sin_family = AF_INET;
+	dst.sin_addr.s_addr = dst_addr;
+	dst.sin_port = tcph.dest;
+
+	return (sendto(send_sock, packet, packet_len, 0, (struct sockaddr *)&dst, sizeof(dst)));
+}
+
+int
+send_probe(int send_sock, uint32_t dst_addr, uint16_t current_port, struct tr_params *params)
+{
+	switch (params->protocol)
+	{
+	case TR_PROTO_UDP:
+		return (send_probe_udp(send_sock, dst_addr, current_port, params));
+	case TR_PROTO_TCP:
+		return (send_probe_tcp(send_sock, dst_addr, current_port, params));
+	}
+	return (0);
+}
+
+int
+trace(int send_sock, int recv_sock, uint32_t dst_addr, struct tr_params *params)
+{
 	for (int ttl = params->first_ttl; ttl <= params->max_ttl; ++ttl)
 	{
 		/**
@@ -279,27 +384,19 @@ trace(int recv_sock, int send_sock, uint32_t dst_addr, struct tr_params *params)
 
 		for (int probe = 0; probe < params->nprobes; ++probe)
 		{
-			/**
-			 * TODO:
-			 * Remplir et formatter le payload en fonction du protocole choisi.
-			 */
-			memset(payload, 0, params->packet_len);
-
-			struct sockaddr_in dst;
-			memset(&dst, 0, sizeof(dst));
-			dst.sin_family = AF_INET;
-			dst.sin_addr = *(struct in_addr *)&dst_addr;
+			int got_reply = 0;
 
 			// Le port est calculé en fonction du TTL et du numéro de probe afin d'être unique
-			int current_port = params->port + ttl * params->nprobes + probe;
-			dst.sin_port = htons(current_port);
-
-			int got_reply = 0;
+			uint16_t current_port = params->port + ttl * params->nprobes + probe;
 
 			struct timespec start, end, now;
 			(void)clock_gettime(CLOCK_MONOTONIC, &start);
 
-			(void)sendto(send_sock, payload, params->packet_len, 0, (struct sockaddr*)&dst, sizeof(dst));
+			if (send_probe(send_sock, dst_addr, current_port, params) == 0)
+			{
+				tr_perr("failed to send probe");
+				continue;
+			}
 
 			/**
 			 * Le socket de réception étant brut il reçoit toutes les trames ICMP reçues par le système.
@@ -504,7 +601,7 @@ main(int argc, char **argv)
 		params.packet_len = tr_params("packet length", argv[optind + 1], 27, TR_MAX_PACKET_LEN);
 	}
 
-	uint32_t dst_addr = get_destination_ip_addr(target);
+	uint32_t dst_addr = get_destination_ip_addr(target, &params);
 	if (dst_addr == 0)
 	{
 		(void)fprintf(stderr, "traceroute: unknown host %s\n", target);
@@ -530,5 +627,5 @@ main(int argc, char **argv)
 
 	(void)printf(TR_PREFIX" to %s (%s), %d hops max, %d byte packets\n", target, ip_str, params.max_ttl, params.packet_len);
 
-	return (trace(recv_sock, send_sock, dst_addr, &params));
+	return (trace(send_sock, recv_sock, dst_addr, &params));
 }

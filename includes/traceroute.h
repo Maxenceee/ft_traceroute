@@ -6,7 +6,7 @@
 /*   By: mgama <mgama@student.42lyon.fr>            +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/10/18 15:22:47 by mgama             #+#    #+#             */
-/*   Updated: 2025/10/19 15:37:21 by mgama            ###   ########.fr       */
+/*   Updated: 2025/10/19 19:37:10 by mgama            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -35,6 +35,7 @@
 #include <netinet/ip.h>
 #include <netinet/ip_icmp.h>
 #include <netinet/udp.h>
+#include <netinet/tcp.h>
 
 #include "verbose.h"
 
@@ -68,6 +69,7 @@ struct tr_params {
 	uint32_t	waittime;
 	uint16_t	packet_len;
 	int			protocol;
+	uint32_t	local_addr;
 };
 
 #endif /* TRACEROUTE_H */
