@@ -6,7 +6,7 @@
 /*   By: mgama <mgama@student.42lyon.fr>            +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/10/18 15:22:47 by mgama             #+#    #+#             */
-/*   Updated: 2025/10/19 14:08:15 by mgama            ###   ########.fr       */
+/*   Updated: 2025/10/19 15:37:21 by mgama            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -52,6 +52,11 @@
 #define TR_DEFAULT_PACKET_LEN 40
 #define TR_MAX_PACKET_LEN 2<<14
 
+#define TR_PROTO_UDP	1
+#define TR_PROTO_ICMP	2
+#define TR_PROTO_TCP	3
+#define TR_PROTO_GRE	4
+
 #define TR_FLAG_VERBOSE 0x01
 
 struct tr_params {
@@ -62,6 +67,7 @@ struct tr_params {
 	uint32_t	nprobes;
 	uint32_t	waittime;
 	uint16_t	packet_len;
+	int			protocol;
 };
 
 #endif /* TRACEROUTE_H */

@@ -6,7 +6,7 @@
 /*   By: mgama <mgama@student.42lyon.fr>            +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/10/18 15:23:52 by mgama             #+#    #+#             */
-/*   Updated: 2025/10/19 15:07:55 by mgama            ###   ########.fr       */
+/*   Updated: 2025/10/19 16:09:56 by mgama            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -44,7 +44,20 @@ isstringdigit(const char *str)
 void
 tr_err(const char *msg)
 {
-	fprintf(stderr, "traceroute: %s\n", msg);
+	fprintf(stderr, TR_PREFIX": %s\n", msg);
+	exit(1);
+}
+
+void
+tr_warn(const char *msg)
+{
+	fprintf(stderr, TR_PREFIX": Warning: %s\n", msg);
+}
+
+void
+tr_bad_value(const char *key, const char *val)
+{
+	fprintf(stderr, TR_PREFIX": \"%s\" bad value for %s\n", val, key);
 	exit(1);
 }
 
@@ -52,16 +65,15 @@ int
 tr_params(const char *key, const char *val, int min, int max)
 {
 	if (!isstringdigit(val)) {
-		fprintf(stderr, "traceroute: \"%s\" bad value for %s\n", val, key);
-		exit(1);
+		tr_bad_value(key, val);
 	}
 	int pval = atoi(val);
 	if (pval < min) {
-		fprintf(stderr, "traceroute: %s must be > %d\n", key, min);
+		fprintf(stderr, TR_PREFIX": %s must be > %d\n", key, min);
 		exit(1);
 	}
 	if (pval > max) {
-		fprintf(stderr, "traceroute: %s must be <= %d\n", key, max);
+		fprintf(stderr, TR_PREFIX": %s must be <= %d\n", key, max);
 		exit(1);
 	}
 	return (pval);
@@ -102,10 +114,16 @@ get_destination_ip_addr(const char *host)
 	}
 
 	struct hostent *hostent = gethostbyname(host);
-	if (hostent == NULL)
+	if (hostent == NULL || hostent->h_addr_list[0] == NULL)
 	{
-		perror("gethostbyname");
 		return 0;
+	}
+
+	if (hostent->h_addr_list[1] != NULL)
+	{
+		char ip_str[INET_ADDRSTRLEN];
+		inet_ntop(AF_INET, hostent->h_addr_list[0], ip_str, sizeof(ip_str));
+		fprintf(stderr, TR_PREFIX": Warning: %s has multiple addresses; using %s\n", host, ip_str);
 	}
 
 	/**
@@ -164,9 +182,50 @@ get_destination_ip_addr(const char *host)
 		}
 		freeifaddrs(ifap);
 		close(sock);
-		return (*(uint32_t *)addr);
+		return (dst.sin_addr.s_addr);
 	}
 	return 0;
+}
+
+int
+set_protocol(const char* proto_str)
+{
+	if (strcmp(proto_str, "udp") == 0 || strcmp(proto_str, "UDP") == 0)
+		return (TR_PROTO_UDP);
+	else if (strcmp(proto_str, "icmp") == 0 || strcmp(proto_str, "ICMP") == 0)
+		return (TR_PROTO_ICMP);
+	else if (strcmp(proto_str, "tcp") == 0 || strcmp(proto_str, "TCP") == 0)
+		return (TR_PROTO_TCP);
+	else if (strcmp(proto_str, "gre") == 0 || strcmp(proto_str, "GRE") == 0)
+		return (TR_PROTO_GRE);
+
+	tr_bad_value("protocol", proto_str);
+	return (0);
+}
+
+int
+create_socket(struct tr_params *params)
+{
+	/**
+	 * Création du socket de réception en fonction du protocole choisi.
+	 * NOTE:
+	 * La création d'un socket brut, permettant de lire toutes les trames ICMP
+	 * entrantes, y compris celles émises et destinées à d'autres processus, cela
+	 * nécessite des privilèges d'administrateur.
+	 */
+	switch (params->protocol)
+	{
+	case TR_PROTO_ICMP:
+		return (socket(AF_INET, SOCK_RAW, IPPROTO_ICMP));
+	case TR_PROTO_UDP:
+		return (socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP));
+	case TR_PROTO_TCP:
+		return (socket(AF_INET, SOCK_STREAM, IPPROTO_TCP));
+	case TR_PROTO_GRE:
+		return (socket(AF_INET, SOCK_RAW, IPPROTO_GRE));
+	default:
+		return (-1);
+	}
 }
 
 void
@@ -288,6 +347,20 @@ trace(int recv_sock, int send_sock, uint32_t dst_addr, struct tr_params *params)
 
 				(void)clock_gettime(CLOCK_MONOTONIC, &end);
 
+				/**
+				 * Le packet reçu est une trame IP contenant un message ICMP, lui même
+				 * contenant la requête initiale.
+				 * ┌─────────────────────────────────────────┐
+				 * │ IP header                               │  ← ip
+				 * ├─────────────────────────────────────────┤
+				 * │ ICMP header (type=X, code=X)            │  ← icmp
+				 * ├─────────────────────────────────────────┤
+				 * │ Inner IP header (paquet original)       │  ← inner_ip
+				 * ├─────────────────────────────────────────┤
+				 * │ UDP header (du paquet original)         │  ← inner_udp
+				 * └─────────────────────────────────────────┘
+				 */
+
 				ip = (struct ip *)buff;
 				int ip_header_len = ip->ip_hl * 4;
 				// Le contenu ICMP commence après l'en-tête IP
@@ -305,20 +378,15 @@ trace(int recv_sock, int send_sock, uint32_t dst_addr, struct tr_params *params)
 
 				uint16_t dport = ntohs(inner_udp->uh_dport);
 
-				// printf("\n\t\t"B_BLUE"debug"RESET": icmp_type=%d icmp_code=%d ip_p=%d port=%d (expected port=%d)\n",
-					// icmp->icmp_type, icmp->icmp_code, inner_ip->ip_p, dport, current_port);
-
 				// On s'assure que le protocole de la requête correspond bien à de l'UDP
 				if (inner_ip->ip_p != IPPROTO_UDP)
 				{
-					// printf("\n\t\t"B_BLUE"debug"RESET": inner_ip->ip_p != IPPROTO_UDP (%d)\n", inner_ip->ip_p);
 					continue;
 				}
 
 				// On s'assure ensuite que le port de destination correspond bien à celui de la probe envoyée
 				if (dport != current_port)
 				{
-					// printf("\n\t\t"B_BLUE"debug"RESET": port mismatch (got %d, expected %d)\n", dport, current_port);
 					continue;
 				}
 
@@ -350,9 +418,6 @@ trace(int recv_sock, int send_sock, uint32_t dst_addr, struct tr_params *params)
 			}
 			if (!got_reply)
 			{
-				// clock_gettime(CLOCK_MONOTONIC, &now);
-				// double elapsed = time_diff_ms(start, now);
-				// printf("\n\t\t"B_BLUE"debug"RESET": timeout after %.3f ms\n", elapsed);
     			printf("* ");
 				fflush(stdout);
 			}
@@ -392,36 +457,34 @@ main(int argc, char **argv)
 	params.port = TR_DEFAULT_BASE_PORT;
 	params.nprobes = TR_DEFAULT_PROBES;
 	params.waittime = TR_DEFAULT_TIMEOUT;
+	params.protocol = TR_PROTO_UDP;
 
 	params.flags = 0;
-    while ((ch = getopt(argc, argv, "f:IM:m:p:q:vw:")) != -1) {
+    while ((ch = getopt(argc, argv, "f:IM:m:P:p:q:vw:")) != -1) {
 		switch (ch) {
 			case 'I':
-				printf("param: -I\n");
+				params.protocol = TR_PROTO_ICMP;
 				break;
 			case 'f':
 			case 'M':
-				printf("param: -f|M\n");
 				params.first_ttl = tr_params("first ttl", optarg, 1, TR_MAX_FIRST_TTL);
 				break;
 			case 'm':
-				printf("param: -m\n");
 				params.max_ttl = tr_params("max ttl", optarg, 1, TR_MAX_TTL);
 				break;
+			case 'P':
+				params.protocol = set_protocol(optarg);
+				break;
 			case 'p':
-				printf("param: -p\n");
 				params.port = tr_params("port", optarg, 1, TR_MAX_PORT);
 				break;
 			case 'q':
-				printf("param: -q\n");
 				params.nprobes = tr_params("nprobes", optarg, 1, TR_MAX_PROBES);
 				break;
 			case 'w':
-				printf("param: -w\n");
 				params.waittime = tr_params("wait time", optarg, 1, TR_MAX_TIMEOUT);
 				break;
 			case 'v':
-				printf("param: -v\n");
 				params.flags |= TR_FLAG_VERBOSE;
 				break;
 			case '?':
@@ -454,15 +517,9 @@ main(int argc, char **argv)
 		perror("socket");
 		return (1);
 	}
-	/**
-	 * Création du socket brut pour recevoir les messages ICMP.
-	 * NOTE:
-	 * La création d'un socket brut, permettant de lire toutes les trames ICMP
-	 * entrantes, y compris celles émises et destinées à d'autres processus, cela
-	 * nécessite des privilèges d'administrateur.
-	 */
-	int raw_sock = socket(AF_INET, SOCK_RAW, IPPROTO_ICMP);
-	if (raw_sock < 0)
+	
+	int recv_sock = create_socket(&params);
+	if (recv_sock < 0)
 	{
 		perror("socket");
 		return (1);
@@ -473,5 +530,5 @@ main(int argc, char **argv)
 
 	printf(TR_PREFIX" to %s (%s), %d hops max, %d byte packets\n", target, ip_str, params.max_ttl, params.packet_len);
 
-	return (trace(raw_sock, send_sock, dst_addr, &params));
+	return (trace(recv_sock, send_sock, dst_addr, &params));
 }
