@@ -6,7 +6,7 @@
 /*   By: mgama <mgama@student.42lyon.fr>            +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/10/18 15:23:52 by mgama             #+#    #+#             */
-/*   Updated: 2025/10/19 23:06:06 by mgama            ###   ########.fr       */
+/*   Updated: 2025/10/19 23:11:56 by mgama            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -55,7 +55,7 @@ trace(int send_sock, int recv_sock, uint32_t dst_addr, struct tr_params *params)
 
 			if (send_probe(send_sock, dst_addr, current_port, params) == 0)
 			{
-				tr_perr("failed to send probe");
+				tr_perr("sendto");
 				continue;
 			}
 
