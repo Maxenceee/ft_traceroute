@@ -6,7 +6,7 @@
 /*   By: mgama <mgama@student.42lyon.fr>            +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/10/19 21:57:01 by mgama             #+#    #+#             */
-/*   Updated: 2025/10/20 00:40:10 by mgama            ###   ########.fr       */
+/*   Updated: 2025/10/20 10:41:35 by mgama            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -148,6 +148,9 @@ get_destination_ip_addr(const char *host, struct tr_params *params)
 
 	struct in_addr in;
 
+	// Sauvegarde le nom d'hôte dans les paramètres
+	params->dest_host = host;
+
 	/**
 	 * On tente d'abord de convertir l'hôte en adresse IP directement.
 	 * Si cela échoue, on effectue une résolution DNS sur le nom d'hôte.
@@ -160,6 +163,9 @@ get_destination_ip_addr(const char *host, struct tr_params *params)
 			return 0;
 		}
 
+		// Conversion de l'adresse IP binaire en chaîne de caractères
+		(void)inet_ntop(AF_INET, hostent->h_addr_list[0], params->dest_ip_str, sizeof(params->dest_ip_str));
+
 		/**
 		 * L'implémentation de traceroute de BSD avertit lorsque
 		 * plusieurs adresses IP sont associées à un nom d'hôte et
@@ -167,9 +173,7 @@ get_destination_ip_addr(const char *host, struct tr_params *params)
 		 */
 		if (hostent->h_addr_list[1] != NULL)
 		{
-			char ip_str[INET_ADDRSTRLEN];
-			(void)inet_ntop(AF_INET, hostent->h_addr_list[0], ip_str, sizeof(ip_str));
-			(void)fprintf(stderr, TR_PREFIX": Warning: %s has multiple addresses; using %s\n", host, ip_str);
+			(void)fprintf(stderr, TR_PREFIX": Warning: %s has multiple addresses; using %s\n", host, params->dest_ip_str);
 		}
 
 		char **addr = hostent->h_addr_list;

@@ -6,7 +6,7 @@
 /*   By: mgama <mgama@student.42lyon.fr>            +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/10/18 15:22:47 by mgama             #+#    #+#             */
-/*   Updated: 2025/10/20 00:02:30 by mgama            ###   ########.fr       */
+/*   Updated: 2025/10/20 10:49:27 by mgama            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -60,6 +60,10 @@
 #define TR_PROTO_GRE	4
 
 #define TR_FLAG_VERBOSE 0x01
+#define TR_FLAG_SUMMARY 0x02
+
+#define verbose(x) ((x & TR_FLAG_VERBOSE) == TR_FLAG_VERBOSE)
+#define summary(x) ((x & TR_FLAG_SUMMARY) == TR_FLAG_SUMMARY)
 
 struct tr_params {
 	uint8_t		flags;
@@ -72,9 +76,9 @@ struct tr_params {
 	int			protocol;
 	uint32_t	local_addr;
 	char		*ifname;
+	char		dest_ip_str[INET_ADDRSTRLEN];
+	const char	*dest_host;
 };
-
-#define verbose(x) ((x & TR_FLAG_VERBOSE) == 1)
 
 static const char* icmp_type_names[] = {
 	"Echo Reply",

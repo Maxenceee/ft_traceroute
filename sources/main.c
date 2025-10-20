@@ -6,7 +6,7 @@
 /*   By: mgama <mgama@student.42lyon.fr>            +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/10/18 15:23:52 by mgama             #+#    #+#             */
-/*   Updated: 2025/10/20 00:52:27 by mgama            ###   ########.fr       */
+/*   Updated: 2025/10/20 10:49:45 by mgama            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -17,7 +17,7 @@
 void
 usage(void)
 {
-	(void)fprintf(stderr, "Usage: traceroute [-Iv] [-f first_ttl] [-M first_ttl] [-m max_ttl]\n");
+	(void)fprintf(stderr, "Usage: traceroute [-ISv] [-f first_ttl] [-M first_ttl] [-m max_ttl]\n");
 	(void)fprintf(stderr, "        [-p port] [-q nqueries] [-w waittime] host [packetlen]\n");
 	exit(64);
 }
@@ -43,6 +43,7 @@ trace(int send_sock, int recv_sock, uint32_t dst_addr, struct tr_params *params)
 		uint32_t last_addr_reached = 0;
 		int dest_reached = 0;
 		size_t sent = 0;
+		uint32_t losses = 0;
 
 		for (uint32_t probe = 0; probe < params->nprobes; ++probe)
 		{
@@ -56,7 +57,7 @@ trace(int send_sock, int recv_sock, uint32_t dst_addr, struct tr_params *params)
 
 			if ((sent = send_probe(send_sock, dst_addr, current_port, params)) <= 0)
 			{
-				printf(TR_PREFIX": wrote %s %zu chars, ret=%d", __func__, sent, -1);
+				printf(TR_PREFIX": wrote %s %u chars, ret=%zu", params->dest_host, params->packet_len, sent);
 				fflush(stdout);
 				continue;
 			}
@@ -171,7 +172,13 @@ trace(int send_sock, int recv_sock, uint32_t dst_addr, struct tr_params *params)
 			{
     			(void)printf("* ");
 				(void)fflush(stdout);
+				losses++;
 			}
+		}
+		if (summary(params->flags))
+		{
+			double loss_percent = ((double)losses / (double)params->nprobes) * 100.0;
+			(void)printf("(%.0f%% loss)", loss_percent);
 		}
 		(void)printf("\n");
 
@@ -203,19 +210,18 @@ main(int argc, char **argv)
 	int ch;
 	char* target;
 	struct tr_params params;
+
+	memset(&params, 0, sizeof(params));
 	
 	params.packet_len = TR_DEFAULT_PACKET_LEN;
-
 	params.max_ttl = get_max_ttl();
 	params.first_ttl = TR_DEFAULT_FIRST_TTL;
 	params.port = TR_DEFAULT_BASE_PORT;
 	params.nprobes = TR_DEFAULT_PROBES;
 	params.waittime = TR_DEFAULT_TIMEOUT;
 	params.protocol = TR_PROTO_UDP;
-	params.ifname = NULL;
 
-	params.flags = 0;
-    while ((ch = getopt(argc, argv, "f:Ii:M:m:P:p:q:vw:")) != -1) {
+    while ((ch = getopt(argc, argv, "f:Ii:M:m:P:p:q:Svw:")) != -1) {
 		switch (ch) {
 			case 'I':
 				params.protocol = TR_PROTO_ICMP;
@@ -240,11 +246,14 @@ main(int argc, char **argv)
 			case 'q':
 				params.nprobes = tr_params("nprobes", optarg, 1, TR_MAX_PROBES);
 				break;
-			case 'w':
-				params.waittime = tr_params("wait time", optarg, 1, TR_MAX_TIMEOUT);
+			case 'S':
+				params.flags |= TR_FLAG_SUMMARY;
 				break;
 			case 'v':
 				params.flags |= TR_FLAG_VERBOSE;
+				break;
+			case 'w':
+				params.waittime = tr_params("wait time", optarg, 1, TR_MAX_TIMEOUT);
 				break;
 			case '?':
             default:
@@ -297,10 +306,7 @@ main(int argc, char **argv)
 		return (1);
 	}
 
-	char ip_str[INET_ADDRSTRLEN];
-	(void)inet_ntop(AF_INET, &dst_addr, ip_str, sizeof(ip_str));
-
-	(void)printf(TR_PREFIX" to %s (%s), %d hops max, %d byte packets\n", target, ip_str, params.max_ttl, params.packet_len);
+	(void)printf(TR_PREFIX" to %s (%s), %d hops max, %d byte packets\n", target, params.dest_host, params.max_ttl, params.packet_len);
 
 	int res = trace(send_sock, recv_sock, dst_addr, &params);
 	(void)close(send_sock);
