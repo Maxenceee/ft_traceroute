@@ -6,7 +6,7 @@
 /*   By: mgama <mgama@student.42lyon.fr>            +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/10/18 15:22:47 by mgama             #+#    #+#             */
-/*   Updated: 2025/10/20 15:45:58 by mgama            ###   ########.fr       */
+/*   Updated: 2025/10/20 15:47:09 by mgama            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -79,7 +79,7 @@ struct tr_params {
 	uint16_t	packet_len;
 	int			protocol;
 	uint32_t	local_addr;
-	uint32_t	tos;
+	int			tos;
 	char		*ifname;
 	char		dest_ip_str[INET_ADDRSTRLEN];
 	const char	*dest_host;
