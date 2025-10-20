@@ -6,11 +6,34 @@
 /*   By: mgama <mgama@student.42lyon.fr>            +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/10/19 21:50:46 by mgama             #+#    #+#             */
-/*   Updated: 2025/10/19 23:00:11 by mgama            ###   ########.fr       */
+/*   Updated: 2025/10/20 11:39:02 by mgama            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "traceroute.h"
+
+static const char* icmp_type_names[] = {
+	"Echo Reply",
+	"Reserved",
+	"Reserved",
+	"Dest Unreachable",
+	"Source Quench",
+	"Redirect Message",
+	"deprecated",
+	"Reserved",
+	"Echo Request",
+	"Router Advertisement",
+	"Router Solicitation",
+	"Time Exceeded",
+	"Parameter Problem: Bad IP header",
+	"Timestamp",
+	"Timestamp Reply",
+	"Information Request",
+	"Information Reply",
+	"Address Mask Request",
+	"Address Mask Reply",
+	"Reserved",
+};
 
 void
 print_router_name(struct sockaddr *sa)

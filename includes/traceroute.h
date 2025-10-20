@@ -6,7 +6,7 @@
 /*   By: mgama <mgama@student.42lyon.fr>            +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/10/18 15:22:47 by mgama             #+#    #+#             */
-/*   Updated: 2025/10/20 11:37:43 by mgama            ###   ########.fr       */
+/*   Updated: 2025/10/20 11:38:56 by mgama            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -80,29 +80,6 @@ struct tr_params {
 	char		*ifname;
 	char		dest_ip_str[INET_ADDRSTRLEN];
 	const char	*dest_host;
-};
-
-static const char* icmp_type_names[] = {
-	"Echo Reply",
-	"Reserved",
-	"Reserved",
-	"Dest Unreachable",
-	"Source Quench",
-	"Redirect Message",
-	"deprecated",
-	"Reserved",
-	"Echo Request",
-	"Router Advertisement",
-	"Router Solicitation",
-	"Time Exceeded",
-	"Parameter Problem: Bad IP header",
-	"Timestamp",
-	"Timestamp Reply",
-	"Information Request",
-	"Information Reply",
-	"Address Mask Request",
-	"Address Mask Reply",
-	"Reserved",
 };
 
 
