@@ -6,7 +6,7 @@
 /*   By: mgama <mgama@student.42lyon.fr>            +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/10/18 15:23:52 by mgama             #+#    #+#             */
-/*   Updated: 2025/10/20 10:49:45 by mgama            ###   ########.fr       */
+/*   Updated: 2025/10/20 11:16:57 by mgama            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -25,7 +25,7 @@ usage(void)
 static double
 time_diff_ms(struct timespec start, struct timespec end)
 {
-    return (end.tv_sec - start.tv_sec) * 1000.0 + (end.tv_nsec - start.tv_nsec) / 1e6;
+	return (end.tv_sec - start.tv_sec) * 1000.0 + (end.tv_nsec - start.tv_nsec) / 1e6;
 }
 
 int
@@ -72,7 +72,7 @@ trace(int send_sock, int recv_sock, uint32_t dst_addr, struct tr_params *params)
 			{
 				(void)clock_gettime(CLOCK_MONOTONIC, &now);
 				// Calcule le temps écoulé depuis l'envoi de la probe
-    			double elapsed = time_diff_ms(start, now);
+				double elapsed = time_diff_ms(start, now);
 
 				// Si le temps écoulé dépasse le timeout, on arrête la réception
 				if (elapsed > params->waittime * 1000.0)
@@ -166,11 +166,11 @@ trace(int send_sock, int recv_sock, uint32_t dst_addr, struct tr_params *params)
 				}
 
 				if (icmp->icmp_type == ICMP_ECHOREPLY || (icmp->icmp_type == ICMP_UNREACH && icmp->icmp_code == ICMP_UNREACH_PORT))
-            		dest_reached = 1;
+					dest_reached = 1;
 			}
 			if (!got_reply)
 			{
-    			(void)printf("* ");
+				(void)printf("* ");
 				(void)fflush(stdout);
 				losses++;
 			}
@@ -199,6 +199,7 @@ trace(int send_sock, int recv_sock, uint32_t dst_addr, struct tr_params *params)
  * -P protocol    : Set the protocol (udp, icmp, tcp, gre) (default is udp).
  * -p port        : Set the destination port (default is 33434).
  * -q nqueries    : Set the number of probes per TTL (default is 3).
+ * -S             : Enable summary mode.
  * -v             : Enable verbose output.
  * -w waittime    : Set the timeout for each probe (default is 5 seconds).
  */
@@ -221,13 +222,10 @@ main(int argc, char **argv)
 	params.waittime = TR_DEFAULT_TIMEOUT;
 	params.protocol = TR_PROTO_UDP;
 
-    while ((ch = getopt(argc, argv, "f:Ii:M:m:P:p:q:Svw:")) != -1) {
+	while ((ch = getopt(argc, argv, "f:IM:m:P:p:q:Svw:")) != -1) {
 		switch (ch) {
 			case 'I':
 				params.protocol = TR_PROTO_ICMP;
-				break;
-			case 'i':
-				params.ifname = optarg;
 				break;
 			case 'f':
 			case 'M':
@@ -267,7 +265,7 @@ main(int argc, char **argv)
 		usage();
 	}
 	target = argv[optind];
-	if (argv[optind + 1])
+	if (optind + 1 < argc && argv[optind + 1])
 	{
 		params.packet_len = tr_params("packet length", argv[optind + 1], 27, TR_MAX_PACKET_LEN);
 	}
@@ -286,11 +284,6 @@ main(int argc, char **argv)
 		return (1);
 	}
 
-	/**
-	 * Afin de récupérer le nom de l'interface réseau utilisée pour atteindre
-	 * la destination, nous parcourons la liste des interfaces réseau et on compare
-	 * l'adresse IP locale obtenue précédemment.
-	 */
 	if (assign_iface(send_sock, dst_addr, &params))
 	{
 		(void)close(send_sock);

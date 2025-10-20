@@ -6,7 +6,7 @@
 /*   By: mgama <mgama@student.42lyon.fr>            +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/10/19 21:57:01 by mgama             #+#    #+#             */
-/*   Updated: 2025/10/20 10:41:35 by mgama            ###   ########.fr       */
+/*   Updated: 2025/10/20 11:17:20 by mgama            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -16,14 +16,6 @@
 int
 _assign_iface(int sock, struct tr_params *params)
 {
-	/**
-	 * FIXME:
-	 *
-	 * L'assignation forcée à une interface spécifique ne fonctionne pas...
-	 * 1. voir le `multicast` (IP_MULTICAST_IF)
-	 * 2. si 1 hors sujet, supprimer l'implémentation.
-	 */
-
 	if (params->ifname == NULL)
 		return (1);
 
@@ -34,8 +26,6 @@ _assign_iface(int sock, struct tr_params *params)
 	{
 		if (ifa->ifa_addr->sa_family == AF_INET && (ifa->ifa_flags & IFF_UP) && (ifa->ifa_flags & IFF_RUNNING) && strcmp(ifa->ifa_name, params->ifname) == 0)
 		{
-			// printf("found %s UP=%d RUNNING=%d INET=%d ", ifa->ifa_name, ifa->ifa_flags & IFF_UP ? 1 : 0, ifa->ifa_flags & IFF_RUNNING ? 1 : 0, ifa->ifa_addr->sa_family == AF_INET);
-			// _print_ip(((struct sockaddr_in *)ifa->ifa_addr)->sin_addr.s_addr, ifa->ifa_name);
 			break;
 		}
 	}
@@ -54,8 +44,6 @@ _assign_iface(int sock, struct tr_params *params)
 
 	struct sockaddr_in *sa = (struct sockaddr_in *)ifa->ifa_addr;
 	params->local_addr = sa->sin_addr.s_addr;
-
-	// _print_ip(params->local_addr, "assigned");
 
 	freeifaddrs(ifap);
 	return (0);
@@ -117,7 +105,11 @@ assign_iface(int sock, uint32_t dst_addr, struct tr_params *params)
 		(void)close(sock);
 	}
 
-	// _print_ip(params->local_addr, "after assigned");
+	/**
+	 * Afin de récupérer le nom de l'interface réseau utilisée pour atteindre
+	 * la destination, nous parcourons la liste des interfaces réseau et on compare
+	 * l'adresse IP locale obtenue précédemment.
+	 */
 
 	if (verbose(params->flags))
 	{
@@ -129,7 +121,6 @@ assign_iface(int sock, uint32_t dst_addr, struct tr_params *params)
 				struct sockaddr_in *sa = (struct sockaddr_in *)ifa->ifa_addr;
 				if (sa->sin_addr.s_addr == params->local_addr)
 				{
-					// _print_ip(params->local_addr, "local");
 					printf("Using interface: %s\n", ifa->ifa_name);
 				}
 			}
@@ -177,7 +168,7 @@ get_destination_ip_addr(const char *host, struct tr_params *params)
 		}
 
 		char **addr = hostent->h_addr_list;
-        memcpy(&in, *addr, sizeof(struct in_addr));
+		memcpy(&in, *addr, sizeof(struct in_addr));
 	}
 
 	return (in.s_addr);

@@ -6,11 +6,12 @@
 /*   By: mgama <mgama@student.42lyon.fr>            +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/10/19 21:52:32 by mgama             #+#    #+#             */
-/*   Updated: 2025/10/20 00:19:04 by mgama            ###   ########.fr       */
+/*   Updated: 2025/10/20 11:18:26 by mgama            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "traceroute.h"
+#include "debug.h"
 
 static int
 send_probe_udp(int send_sock, uint32_t dst_addr, uint16_t current_port, struct tr_params *params)
@@ -55,14 +56,14 @@ send_probe_tcp(int send_sock, uint32_t dst_addr, uint16_t current_port, struct t
 	uint16_t src_port = (uint16_t)(1024 + (rand() % (65535-1024)));
 
 	tcph.th_sport = htons(src_port);
-    tcph.th_dport = htons(current_port);
-    tcph.th_seq   = htonl((uint32_t)rand());
-    tcph.th_ack   = 0;
-    tcph.th_off   = sizeof(struct tcphdr) / 4; // data offset in 32-bit words
-    tcph.th_flags = TH_SYN;                    // SYN flag
-    tcph.th_win   = htons(64240);
-    tcph.th_urp   = 0;
-    tcph.th_sum   = 0;
+	tcph.th_dport = htons(current_port);
+	tcph.th_seq   = htonl((uint32_t)rand());
+	tcph.th_ack   = 0;
+	tcph.th_off   = sizeof(struct tcphdr) / 4;	// data offset in 32-bit words
+	tcph.th_flags = TH_SYN;						// SYN flag
+	tcph.th_win   = htons(64240);
+	tcph.th_urp   = 0;
+	tcph.th_sum   = 0;
 
 	/**
 	 * Le pseudo-header inclut des informations de l'en-tête IP
@@ -132,14 +133,14 @@ send_probe_icmp(int send_sock, uint32_t dst_addr, uint16_t current_port, struct 
 	icmp_hdr.icmp_id   = htons(getpid() & 0xFFFF);
 	icmp_hdr.icmp_seq  = htons(current_port);
 
-	char payload[32] = "ICMP traceroute probe";
-	size_t packet_size = sizeof(icmp_hdr) + sizeof(payload);
-	unsigned char packet[sizeof(icmp_hdr) + sizeof(payload)];
+	uint8_t packet[TR_MAX_PACKET_LEN];
+	size_t packet_data = params->packet_len - sizeof(icmp_hdr);
+
 	memcpy(packet, &icmp_hdr, sizeof(icmp_hdr));
-	memcpy(packet + sizeof(icmp_hdr), payload, sizeof(payload));
+	memset(packet + sizeof(icmp_hdr), 0, packet_data);
 
 	struct icmp *icmp_packet = (struct icmp *)packet;
-    icmp_packet->icmp_cksum = icmp_checksum(packet, packet_size);
+	icmp_packet->icmp_cksum = icmp_checksum(packet, params->packet_len);
 
 	struct sockaddr_in dst;
 	memset(&dst, 0, sizeof(dst));
@@ -147,7 +148,7 @@ send_probe_icmp(int send_sock, uint32_t dst_addr, uint16_t current_port, struct 
 	dst.sin_family = AF_INET;
 	dst.sin_addr = *(struct in_addr *)&dst_addr;
 
-    return (sendto(send_sock, packet, packet_size, 0, (struct sockaddr *)&dst, sizeof(dst)));
+	return (sendto(send_sock, packet, params->packet_len, 0, (struct sockaddr *)&dst, sizeof(dst)));
 }
 
 static int

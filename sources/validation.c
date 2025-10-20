@@ -6,7 +6,7 @@
 /*   By: mgama <mgama@student.42lyon.fr>            +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/10/19 21:54:07 by mgama             #+#    #+#             */
-/*   Updated: 2025/10/19 23:04:34 by mgama            ###   ########.fr       */
+/*   Updated: 2025/10/20 11:18:56 by mgama            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -59,10 +59,10 @@ is_valid_icmp_response(struct icmp *icmp, uint32_t current_port, struct tr_param
 		if (icmp->icmp_id != htons(getpid() & 0xFFFF))
 			return (0);
 
-        if (icmp->icmp_seq != htons(current_port))
+		if (icmp->icmp_seq != htons(current_port))
 			return (0);
 
-        return (1);
+		return (1);
 	}
 	else if (icmp->icmp_type == ICMP_TIMXCEED)
 	{
