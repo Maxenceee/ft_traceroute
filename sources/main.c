@@ -6,18 +6,19 @@
 /*   By: mgama <mgama@student.42lyon.fr>            +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/10/18 15:23:52 by mgama             #+#    #+#             */
-/*   Updated: 2025/10/20 11:16:57 by mgama            ###   ########.fr       */
+/*   Updated: 2025/10/20 12:32:29 by mgama            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "traceroute.h"
 #include "pcolors.h"
 #include "debug.h"
+#include "ft_getopt.h"
 
 void
 usage(void)
 {
-	(void)fprintf(stderr, "Usage: traceroute [-ISv] [-f first_ttl] [-M first_ttl] [-m max_ttl]\n");
+	(void)fprintf(stderr, "Usage: traceroute [-ISv] [-f first_ttl] [-m max_ttl]\n");
 	(void)fprintf(stderr, "        [-p port] [-q nqueries] [-w waittime] host [packetlen]\n");
 	exit(64);
 }
@@ -194,7 +195,6 @@ trace(int send_sock, int recv_sock, uint32_t dst_addr, struct tr_params *params)
  * Program params:
  * -f first_ttl   : Set the initial time-to-live value (default is 1).
  * -I             : Use ICMP Echo Request as the probe protocol instead of UDP (-P icmp).
- * -M first_ttl   : Set the initial time-to-live value (default is 1).
  * -m max_ttl     : Set the maximum time-to-live value (value of net.inet.ip.ttl).
  * -P protocol    : Set the protocol (udp, icmp, tcp, gre) (default is udp).
  * -p port        : Set the destination port (default is 33434).
@@ -222,27 +222,45 @@ main(int argc, char **argv)
 	params.waittime = TR_DEFAULT_TIMEOUT;
 	params.protocol = TR_PROTO_UDP;
 
-	while ((ch = getopt(argc, argv, "f:IM:m:P:p:q:Svw:")) != -1) {
+	struct getopt_list_s optlist[] = {
+		{"first", 'f', OPTPARSE_REQUIRED},
+		{"icmp", 'I', OPTPARSE_NONE},
+		{"udp", 'U', OPTPARSE_NONE},
+		{"max-hops", 'm', OPTPARSE_REQUIRED},
+		{"protocol", 'P', OPTPARSE_REQUIRED},
+		{"port", 'p', OPTPARSE_REQUIRED},
+		{"queries", 'q', OPTPARSE_REQUIRED},
+		{"summary", 'S', OPTPARSE_NONE},
+		{"verbose", 'v', OPTPARSE_NONE},
+		{"wait", 'w', OPTPARSE_REQUIRED},
+		{0}
+	};
+	struct getopt_s options;
+
+	ft_getopt_init(&options, argv);
+	while ((ch = ft_getopt(&options, optlist, NULL)) != -1) {
 		switch (ch) {
 			case 'I':
 				params.protocol = TR_PROTO_ICMP;
 				break;
+			case 'U':
+				params.protocol = TR_PROTO_UDP;
+				break;
 			case 'f':
-			case 'M':
-				params.first_ttl = tr_params("first ttl", optarg, 1, TR_MAX_FIRST_TTL);
+				params.first_ttl = tr_params("first ttl", options.optarg, 1, TR_MAX_FIRST_TTL);
 				break;
 			case 'm':
-				params.max_ttl = tr_params("max ttl", optarg, 1, TR_MAX_TTL);
+				params.max_ttl = tr_params("max ttl", options.optarg, 1, TR_MAX_TTL);
 				break;
 			case 'P':
-				if ((params.protocol = set_protocol(optarg)) == 0)
+				if ((params.protocol = set_protocol(options.optarg)) == 0)
 					return (1);
 				break;
 			case 'p':
-				params.port = tr_params("port", optarg, 1, TR_MAX_PORT);
+				params.port = tr_params("port", options.optarg, 1, TR_MAX_PORT);
 				break;
 			case 'q':
-				params.nprobes = tr_params("nprobes", optarg, 1, TR_MAX_PROBES);
+				params.nprobes = tr_params("nprobes", options.optarg, 1, TR_MAX_PROBES);
 				break;
 			case 'S':
 				params.flags |= TR_FLAG_SUMMARY;
@@ -251,7 +269,7 @@ main(int argc, char **argv)
 				params.flags |= TR_FLAG_VERBOSE;
 				break;
 			case 'w':
-				params.waittime = tr_params("wait time", optarg, 1, TR_MAX_TIMEOUT);
+				params.waittime = tr_params("wait time", options.optarg, 1, TR_MAX_TIMEOUT);
 				break;
 			case '?':
             default:
@@ -260,14 +278,14 @@ main(int argc, char **argv)
 		}
 	}
 
-	if (argc - optind > 2)
+	if (argc - options.optind > 2)
 	{
 		usage();
 	}
-	target = argv[optind];
-	if (optind + 1 < argc && argv[optind + 1])
+	target = argv[options.optind];
+	if (options.optind + 1 < argc && argv[options.optind + 1])
 	{
-		params.packet_len = tr_params("packet length", argv[optind + 1], 27, TR_MAX_PACKET_LEN);
+		params.packet_len = tr_params("packet length", argv[options.optind + 1], 27, TR_MAX_PACKET_LEN);
 	}
 
 	int send_sock = create_socket(&params);
