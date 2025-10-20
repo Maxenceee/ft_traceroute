@@ -6,7 +6,7 @@
 /*   By: mgama <mgama@student.42lyon.fr>            +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/10/18 15:22:47 by mgama             #+#    #+#             */
-/*   Updated: 2025/10/20 12:26:58 by mgama            ###   ########.fr       */
+/*   Updated: 2025/10/20 15:45:58 by mgama            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -44,17 +44,19 @@
 
 #define TR_PREFIX "ft_traceroute"
 
-#define TR_DEFAULT_PROBES 3
-#define TR_MAX_PROBES 255
-#define TR_DEFAULT_FIRST_TTL 1
-#define TR_MAX_FIRST_TTL 255
-#define TR_MAX_TTL 255
-#define TR_DEFAULT_TIMEOUT 5
-#define TR_MAX_TIMEOUT 86400
-#define TR_DEFAULT_BASE_PORT 33434
-#define TR_MAX_PORT 65535
-#define TR_DEFAULT_PACKET_LEN 40
-#define TR_MAX_PACKET_LEN 2<<14
+#define TR_DEFAULT_PROBES		3
+#define TR_MAX_PROBES			255
+#define TR_DEFAULT_FIRST_TTL	1
+#define TR_MAX_FIRST_TTL		255
+#define TR_MAX_TTL				255
+#define TR_DEFAULT_TOS			-1
+#define TR_MAX_TOS				255
+#define TR_DEFAULT_TIMEOUT		5
+#define TR_MAX_TIMEOUT			86400
+#define TR_DEFAULT_BASE_PORT	33434
+#define TR_MAX_PORT				65535
+#define TR_DEFAULT_PACKET_LEN	40
+#define TR_MAX_PACKET_LEN		(2<<14) // 32768 bytes
 
 #define TR_PROTO_UDP	1
 #define TR_PROTO_ICMP	2
@@ -77,6 +79,7 @@ struct tr_params {
 	uint16_t	packet_len;
 	int			protocol;
 	uint32_t	local_addr;
+	uint32_t	tos;
 	char		*ifname;
 	char		dest_ip_str[INET_ADDRSTRLEN];
 	const char	*dest_host;

@@ -6,7 +6,7 @@
 /*   By: mgama <mgama@student.42lyon.fr>            +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/10/18 15:23:52 by mgama             #+#    #+#             */
-/*   Updated: 2025/10/20 13:51:09 by mgama            ###   ########.fr       */
+/*   Updated: 2025/10/20 15:46:12 by mgama            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -221,17 +221,19 @@ main(int argc, char **argv)
 	params.nprobes = TR_DEFAULT_PROBES;
 	params.waittime = TR_DEFAULT_TIMEOUT;
 	params.protocol = TR_PROTO_UDP;
+	params.tos = TR_DEFAULT_TOS;
 
 	struct getopt_list_s optlist[] = {
 		{"help", 'h', OPTPARSE_NONE},
 		{"first", 'f', OPTPARSE_REQUIRED},
 		{"icmp", 'I', OPTPARSE_NONE},
-		{"udp", 'U', OPTPARSE_NONE},
 		{"max-hops", 'm', OPTPARSE_REQUIRED},
 		{"protocol", 'P', OPTPARSE_REQUIRED},
 		{"port", 'p', OPTPARSE_REQUIRED},
 		{"queries", 'q', OPTPARSE_REQUIRED},
 		{"summary", 'S', OPTPARSE_NONE},
+		{"tos", 't', OPTPARSE_REQUIRED},
+		{"udp", 'U', OPTPARSE_NONE},
 		{"verbose", 'v', OPTPARSE_NONE},
 		{"wait", 'w', OPTPARSE_REQUIRED},
 		{0}
@@ -265,6 +267,9 @@ main(int argc, char **argv)
 				break;
 			case 'S':
 				params.flags |= TR_FLAG_SUMMARY;
+				break;
+			case 't':
+				params.tos = tr_params("tos", options.optarg, 0, TR_MAX_TOS);
 				break;
 			case 'v':
 				params.flags |= TR_FLAG_VERBOSE;
@@ -309,6 +314,15 @@ main(int argc, char **argv)
 	{
 		(void)close(send_sock);
 		return (0);
+	}
+
+	if (params.tos >= 0)
+	{
+		if (setsockopt(send_sock, IPPROTO_IP, IP_TOS, &params.tos, sizeof(params.tos)) < 0)
+		{
+			perror("setsockopt IP_TOS");
+			return -1;
+		}
 	}
 	
 	int recv_sock = socket(AF_INET, SOCK_RAW, IPPROTO_ICMP);
