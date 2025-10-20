@@ -6,7 +6,7 @@
 /*   By: mgama <mgama@student.42lyon.fr>            +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/10/19 21:58:38 by mgama             #+#    #+#             */
-/*   Updated: 2025/10/19 21:58:48 by mgama            ###   ########.fr       */
+/*   Updated: 2025/10/20 11:42:02 by mgama            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -25,6 +25,7 @@ check_privileges(void)
 int
 get_max_ttl(void)
 {
+#ifdef __APPLE__
 	int max_ttl;
 	size_t len = sizeof(max_ttl);
 
@@ -33,4 +34,7 @@ get_max_ttl(void)
 		exit(1);
 	}
 	return (max_ttl);
+#else
+	return (30);
+#endif /* __APPLE__ */
 }
