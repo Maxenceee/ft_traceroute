@@ -6,7 +6,7 @@
 /*   By: mgama <mgama@student.42lyon.fr>            +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/10/18 15:22:47 by mgama             #+#    #+#             */
-/*   Updated: 2025/10/20 10:49:27 by mgama            ###   ########.fr       */
+/*   Updated: 2025/10/20 11:37:43 by mgama            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -28,7 +28,9 @@
 #include <sys/time.h>
 #include <sys/socket.h>
 #include <sys/types.h>
+#ifdef __APPLE__
 #include <sys/sysctl.h>
+#endif
 
 #include <arpa/inet.h>
 #include <net/if.h>
