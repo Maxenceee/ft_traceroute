@@ -6,7 +6,7 @@
 /*   By: mgama <mgama@student.42lyon.fr>            +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/10/18 15:23:52 by mgama             #+#    #+#             */
-/*   Updated: 2025/10/20 12:32:29 by mgama            ###   ########.fr       */
+/*   Updated: 2025/10/20 13:51:09 by mgama            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -223,6 +223,7 @@ main(int argc, char **argv)
 	params.protocol = TR_PROTO_UDP;
 
 	struct getopt_list_s optlist[] = {
+		{"help", 'h', OPTPARSE_NONE},
 		{"first", 'f', OPTPARSE_REQUIRED},
 		{"icmp", 'I', OPTPARSE_NONE},
 		{"udp", 'U', OPTPARSE_NONE},
@@ -271,6 +272,8 @@ main(int argc, char **argv)
 			case 'w':
 				params.waittime = tr_params("wait time", options.optarg, 1, TR_MAX_TIMEOUT);
 				break;
+			case 'h':
+				usage();
 			case '?':
             default:
 				printf("Unknown option\n");
