@@ -6,9 +6,20 @@
 /*   By: mgama <mgama@student.42lyon.fr>            +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/10/18 15:23:52 by mgama             #+#    #+#             */
-/*   Updated: 2025/10/20 15:46:12 by mgama            ###   ########.fr       */
+/*   Updated: 2025/10/23 18:14:00 by mgama            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
+
+/**
+ * NOTE:
+ * Ce projet est basé sur l'implémentation de traceroute sur les systèmes BSD.
+ * Cette implémentation diffère de l'implémentation GNU/Linux, notamment l'utilisation
+ * de deux sockets distincts pour l'envoi et la réception des probes.
+ * L'implémentation Linux utilise un seul socket UDP en mode connecté pour envoyer
+ * et recevoir les probes.
+ * En outre, l'implémentation BSD nécessite des privilèges pour créer un socket RAW,
+ * ce qui explique que le bit de `setuid` soit activé sur l'exécutable final.
+ */
 
 #include "traceroute.h"
 #include "pcolors.h"
