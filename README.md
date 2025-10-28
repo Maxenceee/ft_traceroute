@@ -2,7 +2,7 @@
 
 My **ft_traceroute** project for the 42 school cursus.
 
-### Getting Started
+## Getting Started
 
 You need to compile the project with `make`.
 
