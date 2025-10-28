@@ -6,7 +6,7 @@
 /*   By: mgama <mgama@student.42lyon.fr>            +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/10/18 15:23:52 by mgama             #+#    #+#             */
-/*   Updated: 2025/10/23 18:14:00 by mgama            ###   ########.fr       */
+/*   Updated: 2025/10/28 19:32:42 by mgama            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -297,7 +297,7 @@ main(int argc, char **argv)
 		}
 	}
 
-	if (argc - options.optind > 2)
+	if (argc - options.optind != 1)
 	{
 		usage();
 	}
