@@ -6,7 +6,7 @@
 /*   By: mgama <mgama@student.42lyon.fr>            +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/10/18 15:23:52 by mgama             #+#    #+#             */
-/*   Updated: 2025/10/28 19:32:42 by mgama            ###   ########.fr       */
+/*   Updated: 2025/11/08 17:05:43 by mgama            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -290,6 +290,7 @@ main(int argc, char **argv)
 				break;
 			case 'h':
 				usage();
+				break;
 			case '?':
             default:
 				printf("Unknown option\n");

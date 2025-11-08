@@ -6,7 +6,7 @@
 /*   By: mgama <mgama@student.42lyon.fr>            +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/10/19 21:50:46 by mgama             #+#    #+#             */
-/*   Updated: 2025/10/20 11:47:33 by mgama            ###   ########.fr       */
+/*   Updated: 2025/11/08 17:46:04 by mgama            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -95,7 +95,7 @@ print_verbose_response(uint8_t *packet, size_t packet_size)
 
 	const char *type_name = icmp_hdr->icmp_type < sizeof(icmp_type_names) ? icmp_type_names[icmp_hdr->icmp_type] : "unknown";
 
-	(void)printf("%ld bytes from %s to %s: icmp type %d (%s) code %d\n",
+	(void)printf("%zd bytes from %s to %s: icmp type %d (%s) code %d\n",
 		icmp_len,
 		src,
 		dst,

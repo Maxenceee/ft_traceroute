@@ -6,7 +6,7 @@
 /*   By: mgama <mgama@student.42lyon.fr>            +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/07/20 21:42:23 by mgama             #+#    #+#             */
-/*   Updated: 2024/08/02 03:18:37 by mgama            ###   ########.fr       */
+/*   Updated: 2025/11/08 17:41:04 by mgama            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -16,13 +16,15 @@
 int	verbose_mode = VERBOSE_OFF;
 int verbose_size = 0;
 
-void ft_putchar(char c)
+void
+ft_putchar(char c)
 {
 	write(STDOUT_FILENO, &c, 1);
 	verbose_size++;
 }
 
-void ft_putstr_fd(char *s, int fd)
+void
+ft_putstr_fd(char *s, int fd)
 {
 	size_t c;
 
@@ -34,7 +36,8 @@ void ft_putstr_fd(char *s, int fd)
 		verbose_size += c;
 }
 
-void ft_putnbr_base(uint32_t nbr, int capitals, uint32_t baselen)
+void
+ft_putnbr_base(uint32_t nbr, int capitals, uint32_t baselen)
 {
 	if (nbr >= baselen)
 	{
@@ -45,10 +48,14 @@ void ft_putnbr_base(uint32_t nbr, int capitals, uint32_t baselen)
 		ft_putchar(DIGITS[nbr + capitals]);
 }
 
-void ft_putnbr(int nb)
+void
+ft_putnbr(int nb)
 {
 	if (nb == -2147483648)
-		return ((void)ft_putstr_fd("-2147483648", STDOUT_FILENO));
+	{
+		(void)ft_putstr_fd("-2147483648", STDOUT_FILENO);
+		return;
+	}
 	if (nb < 0)
 	{
 		ft_putchar('-');
@@ -57,15 +64,20 @@ void ft_putnbr(int nb)
 	ft_putnbr_base(nb, 0, 10);
 }
 
-void ft_puthex_p(unsigned long int n)
+void
+ft_puthex_p(unsigned long int n)
 {
 	if (!n)
-		return ((void)ft_putstr_fd("(nil)", STDOUT_FILENO));
+	{
+		(void)ft_putstr_fd("(nil)", STDOUT_FILENO);
+		return;
+	}
 	ft_putstr_fd("0x", STDOUT_FILENO);
 	ft_putnbr_base(n, 0, 16);
 }
 
-void ft_switch_types(const char *fmt, va_list *argp, int hex)
+void
+ft_switch_types(const char *fmt, va_list *argp, int hex)
 {
 	switch (*fmt)
 	{
@@ -111,7 +123,8 @@ void ft_switch_types(const char *fmt, va_list *argp, int hex)
 	}
 }
 
-void print_type(const char *fmt, va_list *argp)
+void
+print_type(const char *fmt, va_list *argp)
 {
 	size_t i = 0;
 	int	hex = 0;
@@ -134,7 +147,8 @@ void print_type(const char *fmt, va_list *argp)
 	}
 }
 
-void ft_verbose(const char *fmt, ...)
+void
+ft_verbose(const char *fmt, ...)
 {
 	verbose_size = 0;
 	if (verbose_mode == VERBOSE_OFF)
