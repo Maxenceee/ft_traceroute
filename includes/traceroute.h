@@ -6,7 +6,7 @@
 /*   By: mgama <mgama@student.42lyon.fr>            +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/10/18 15:22:47 by mgama             #+#    #+#             */
-/*   Updated: 2025/10/20 15:47:09 by mgama            ###   ########.fr       */
+/*   Updated: 2025/11/14 10:52:11 by mgama            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -63,8 +63,10 @@
 #define TR_PROTO_TCP	3
 #define TR_PROTO_GRE	4
 
-#define TR_FLAG_VERBOSE 0x01
-#define TR_FLAG_SUMMARY 0x02
+#define TR_FLAG_VERBOSE	0x01
+#define TR_FLAG_SUMMARY	0x02
+#define TR_FLAG_DEBUG	0x04
+#define TR_FLAG_NOROUTE	0x08
 
 #define verbose(x) ((x & TR_FLAG_VERBOSE) == TR_FLAG_VERBOSE)
 #define summary(x) ((x & TR_FLAG_SUMMARY) == TR_FLAG_SUMMARY)

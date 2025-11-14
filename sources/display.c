@@ -6,7 +6,7 @@
 /*   By: mgama <mgama@student.42lyon.fr>            +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/10/19 21:50:46 by mgama             #+#    #+#             */
-/*   Updated: 2025/11/08 17:46:04 by mgama            ###   ########.fr       */
+/*   Updated: 2025/11/14 10:43:39 by mgama            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -42,7 +42,7 @@ print_router_name(struct sockaddr *sa)
 	char ip_str[INET_ADDRSTRLEN];
 	(void)inet_ntop(AF_INET, &((struct sockaddr_in *)sa)->sin_addr, ip_str, sizeof(ip_str));
 
-#ifdef __APPLE__
+#ifdef HAVE_SOCKADDR_SA_LEN
 	socklen_t sa_len = sa->sa_len;
 #else
 	socklen_t sa_len = sizeof(struct sockaddr_in);
