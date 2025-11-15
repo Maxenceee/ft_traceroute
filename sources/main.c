@@ -6,7 +6,7 @@
 /*   By: mgama <mgama@student.42lyon.fr>            +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/10/18 15:23:52 by mgama             #+#    #+#             */
-/*   Updated: 2025/11/14 10:54:54 by mgama            ###   ########.fr       */
+/*   Updated: 2025/11/15 11:26:54 by mgama            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -17,7 +17,7 @@
  * de deux sockets distincts pour l'envoi et la réception des probes.
  * L'implémentation Linux utilise un seul socket UDP en mode connecté pour envoyer
  * et recevoir les probes.
- * En outre, l'implémentation BSD nécessite des privilèges pour créer un socket RAW,
+ * Par conséquent, l'implémentation BSD nécessite des privilèges pour créer un socket RAW,
  * ce qui explique que le bit de `setuid` soit activé sur l'exécutable final.
  */
 
@@ -38,6 +38,16 @@ static double
 time_diff_ms(struct timespec start, struct timespec end)
 {
 	return (end.tv_sec - start.tv_sec) * 1000.0 + (end.tv_nsec - start.tv_nsec) / 1e6;
+}
+
+static int
+get_probe_port(uint32_t ttl, uint32_t probe, struct tr_params *params)
+{
+	if (params->flags & TR_FLAG_FIXED_PORT)
+	{
+		return (params->port);
+	}
+	return (params->port + ttl * params->nprobes + probe);
 }
 
 int
@@ -62,7 +72,7 @@ trace(int send_sock, int recv_sock, uint32_t dst_addr, struct tr_params *params)
 			int got_reply = 0;
 
 			// Le port est calculé en fonction du TTL et du numéro de probe afin d'être unique
-			uint16_t current_port = params->port + ttl * params->nprobes + probe;
+			uint16_t current_port = get_probe_port(ttl, probe, params);
 
 			struct timespec start, end, now;
 			(void)clock_gettime(CLOCK_MONOTONIC, &start);
@@ -114,7 +124,7 @@ trace(int send_sock, int recv_sock, uint32_t dst_addr, struct tr_params *params)
 				struct sockaddr_in from;
 				socklen_t fromlen = sizeof(from);
 
-				ssize_t n = recvfrom(recv_sock, buff, sizeof buff, 0, (struct sockaddr*)&from, &fromlen);
+				ssize_t n = recvfrom(recv_sock, buff, sizeof(buff), 0, (struct sockaddr*)&from, &fromlen);
 				if (n <= 0)
 					continue;
 
@@ -214,7 +224,8 @@ trace(int send_sock, int recv_sock, uint32_t dst_addr, struct tr_params *params)
  * -r             : Do not use routing tables (SO_DONTROUTE).
  * -S             : Enable summary mode.
  * -t tos         : Set the Type of Service field in the IP header.
- * -U			  : Use UDP as the probe protocol (default) (-P udp).
+ * -U			  : Use UDP to particular destination port for tracerouting (instead of increasing the port per each probe). Default port is 53 (dns).
+ * -V             : Print version information and exit.
  * -v             : Enable verbose output.
  * -w waittime    : Set the timeout for each probe (default is 5 seconds).
  */
@@ -252,6 +263,7 @@ main(int argc, char **argv)
 		{"summary", 'S', OPTPARSE_NONE},
 		{"tos", 't', OPTPARSE_REQUIRED},
 		{"udp", 'U', OPTPARSE_NONE},
+		{"version", 'V', OPTPARSE_NONE},
 		{"verbose", 'v', OPTPARSE_NONE},
 		{"wait", 'w', OPTPARSE_REQUIRED},
 		{0}
@@ -272,6 +284,8 @@ main(int argc, char **argv)
 				break;
 			case 'U':
 				params.protocol = TR_PROTO_UDP;
+				params.port = 53;
+				params.flags |= TR_FLAG_FIXED_PORT;
 				break;
 			case 'f':
 				params.first_ttl = tr_params("first ttl", options.optarg, 1, TR_MAX_FIRST_TTL);
@@ -295,6 +309,9 @@ main(int argc, char **argv)
 			case 't':
 				params.tos = tr_params("tos", options.optarg, 0, TR_MAX_TOS);
 				break;
+			case 'V':
+				(void)printf(TR_PREFIX" version 1.0 - mgama\n");
+				exit(0);
 			case 'v':
 				params.flags |= TR_FLAG_VERBOSE;
 				break;
@@ -306,12 +323,12 @@ main(int argc, char **argv)
 				break;
 			case '?':
             default:
-				printf("Unknown option\n");
+				printf("Unknown option -- %c\n", options.optopt);
 				usage();
 		}
 	}
 
-	if (argc - options.optind != 1)
+	if (argc - options.optind < 1 || argc - options.optind > 2)
 	{
 		usage();
 	}

@@ -6,7 +6,7 @@
 /*   By: mgama <mgama@student.42lyon.fr>            +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/10/18 15:22:47 by mgama             #+#    #+#             */
-/*   Updated: 2025/11/14 10:52:11 by mgama            ###   ########.fr       */
+/*   Updated: 2025/11/15 11:18:33 by mgama            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -63,10 +63,11 @@
 #define TR_PROTO_TCP	3
 #define TR_PROTO_GRE	4
 
-#define TR_FLAG_VERBOSE	0x01
-#define TR_FLAG_SUMMARY	0x02
-#define TR_FLAG_DEBUG	0x04
-#define TR_FLAG_NOROUTE	0x08
+#define TR_FLAG_VERBOSE		0x01
+#define TR_FLAG_SUMMARY		0x02
+#define TR_FLAG_DEBUG		0x04
+#define TR_FLAG_NOROUTE		0x08
+#define TR_FLAG_FIXED_PORT	0x10
 
 #define verbose(x) ((x & TR_FLAG_VERBOSE) == TR_FLAG_VERBOSE)
 #define summary(x) ((x & TR_FLAG_SUMMARY) == TR_FLAG_SUMMARY)
@@ -87,6 +88,9 @@ struct tr_params {
 	const char	*dest_host;
 };
 
+#ifndef __APPLE__
+#define __unused __attribute__((unused))
+#endif
 
 /* Function prototypes */
 

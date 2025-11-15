@@ -9,7 +9,7 @@ You need to compile the project with `make`.
 ### Usage
 
 ```
-Usage: traceroute [-ISv] [-f first_ttl] [-m max_ttl]
+Usage: traceroute [-dIrSv] [-f first_ttl] [-m max_ttl]
         [-p port] [-q nqueries] [-w waittime] host [packetlen]
 ```
 
