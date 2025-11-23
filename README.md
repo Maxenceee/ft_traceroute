@@ -2,6 +2,8 @@
 
 My **ft_traceroute** project for the 42 school cursus.
 
+Final grade : `125/100` & `Outstanding Project`
+
 ## Getting Started
 
 You need to compile the project with `make`.
